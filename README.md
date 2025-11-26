@@ -14,17 +14,17 @@ Claude Obsidian Skills is a collection of AI agent skills designed to automate p
 
 | Skill | Description |
 |-------|-------------|
-| [obsidian-links](skills/obsidian-links/) | Format, validate, and fix wiki links with proper filename, section, and folder conventions |
-| [obsidian-yaml-frontmatter](skills/obsidian-yaml-frontmatter/) | Standardize YAML frontmatter properties with consistent formatting and naming |
-| [obsidian-markdown-structure](skills/obsidian-markdown-structure/) | Validate and enforce markdown document structure, heading hierarchy, and organization |
+| [obsidian-links](obsidian-links/) | Format, validate, and fix wiki links with proper filename, section, and folder conventions |
+| [obsidian-yaml-frontmatter](obsidian-yaml-frontmatter/) | Standardize YAML frontmatter properties with consistent formatting and naming |
+| [obsidian-markdown-structure](obsidian-markdown-structure/) | Validate and enforce markdown document structure, heading hierarchy, and organization |
 
 ### Markdown Skills
 
 | Skill | Description |
 |-------|-------------|
-| [markdown-slides](skills/markdown-slides/) | Create Deckset/Marp compatible presentation slides from markdown content |
-| [markdown-video](skills/markdown-video/) | Convert markdown slides to MP4 video with TTS narration |
-| [interactive-writing-assistant](skills/interactive-writing-assistant/) | AI-powered writing companion with outline-prose co-evolution and PKM integration |
+| [markdown-slides](markdown-slides/) | Create Deckset/Marp compatible presentation slides from markdown content |
+| [markdown-video](markdown-video/) | Convert markdown slides to MP4 video with TTS narration |
+| [interactive-writing-assistant](interactive-writing-assistant/) | AI-powered writing companion with outline-prose co-evolution and PKM integration |
 
 ## Installation
 
@@ -37,7 +37,7 @@ git clone https://github.com/jykim/claude-obsidian-skills.git
 
 2. Copy skills to your Claude Code skills directory:
 ```bash
-cp -r claude-obsidian-skills/skills/* ~/.claude/skills/
+cp -r claude-obsidian-skills/*-* ~/.claude/skills/
 ```
 
 3. Claude Code will automatically detect and use the skills.
@@ -97,7 +97,7 @@ We welcome contributions! Here's how you can help:
 
 ### Creating a New Skill
 
-1. Create a folder in `skills/` with your skill name
+1. Create a folder in the repo root with your skill name
 2. Add a `SKILL.md` with:
    - Frontmatter (name, description, allowed-tools, license)
    - Clear "When to Use" section
