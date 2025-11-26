@@ -46,6 +46,41 @@ cp -r claude-obsidian-skills/*-* ~/.claude/skills/
 
 Copy the `SKILL.md` file from the desired skill folder to your assistant's skill directory. Each skill is self-contained and documented within its SKILL.md file.
 
+### Advanced: Git Submodule Integration
+
+For vault maintainers who want to keep skills in sync with this repository while avoiding duplication:
+
+1. Add as a submodule to your vault:
+```bash
+git submodule add https://github.com/jykim/claude-obsidian-skills.git path/to/skills/public-skills
+```
+
+2. Create symlinks for backward compatibility:
+```bash
+cd path/to/skills
+ln -s public-skills/obsidian-links obsidian-links
+ln -s public-skills/obsidian-yaml-frontmatter obsidian-yaml-frontmatter
+ln -s public-skills/obsidian-markdown-structure obsidian-markdown-structure
+ln -s public-skills/markdown-slides markdown-slides
+ln -s public-skills/markdown-video markdown-video
+ln -s public-skills/interactive-writing-assistant interactive-writing-assistant
+```
+
+3. Update skills when new versions are released:
+```bash
+git submodule update --remote
+```
+
+**Benefits:**
+- Single source of truth - edit in one place
+- Version control - pin to specific commits if needed
+- Easy updates via git submodule commands
+
+**Note:** When cloning a vault with submodules, use `--recursive`:
+```bash
+git clone --recursive your-vault-repo
+```
+
 ## Quick Start
 
 ### Validate Wiki Links
