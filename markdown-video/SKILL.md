@@ -37,6 +37,44 @@ Activate this skill when the user:
 - **Standalone file**: No dependencies or broken links
 - **File naming**: `{input_filename}.mp4`
 
+## Workflow Options
+
+Choose between two workflows based on your needs:
+
+### Option A: With Deckset (Recommended for Complex Slides)
+**Best for**: Professional presentations, complex layouts, emoji support, multiple themes
+
+**Pros**:
+- Perfect layout rendering (exactly as designed in Deckset)
+- Full emoji support
+- All Deckset themes and features available
+- Complex image positioning (fit, fill, left, right, etc.)
+
+**Cons**:
+- Requires manual Deckset export step
+- Deckset app must be installed
+
+### Option B: Auto-Generate (No Deckset Required)
+**Best for**: Quick video creation, simple layouts, personal videos
+
+**Pros**:
+- Fully automated (no manual steps)
+- No Deckset installation required
+- Multiple theme options (romantic, professional, minimal)
+
+**Cons**:
+- **No emoji support** (PIL limitation - remove emojis from titles)
+- Simple gradient backgrounds only
+- Limited image positioning (center or side-by-side only)
+
+**Choose Option B when**:
+- Creating quick personal videos
+- Simple slide layouts are sufficient
+- Emojis are not needed in titles
+- Deckset is not available
+
+---
+
 ## Complete Workflow
 
 ### Step 1: Preparation and Validation
@@ -422,11 +460,106 @@ python create_slide_images.py "slides.md" \
   --base-slides "base-slides" --dry-run
 ```
 
-## Benefits of This Workflow
+## Benefits of Option A Workflow
 
-✅ **Perfect numbering match** - Images and audio always sync correctly
-✅ **Automated** - No manual counting or matching needed
-✅ **Flexible** - Slides can have notes or be excluded
-✅ **Clean video** - Only slide content visible (notes cropped)
-✅ **Source documentation** - Composite images preserve notes for reference
-✅ **High quality** - Full HD output with natural TTS
+- **Perfect numbering match** - Images and audio always sync correctly
+- **Automated** - No manual counting or matching needed
+- **Flexible** - Slides can have notes or be excluded
+- **Clean video** - Only slide content visible (notes cropped)
+- **Source documentation** - Composite images preserve notes for reference
+- **High quality** - Full HD output with natural TTS
+
+---
+
+## Option B: Auto-Generate Workflow (No Deckset)
+
+Use this workflow when Deckset is not available or for quick video creation.
+
+### Prerequisites
+
+1. **Remove emojis from slide titles** (PIL cannot render color emojis)
+2. Ensure all images exist and have correct paths
+3. OpenAI API key configured
+
+### Step B1: Generate Audio Files
+
+Same as Option A Step 2:
+
+```bash
+cd "{slides_directory}"
+python path/to/generate_audio.py "{slides_filename}" --output-dir "audio"
+```
+
+### Step B2: Generate Slide Images (Auto)
+
+**Execute**:
+```bash
+cd "{slides_directory}"
+python path/to/create_slides_from_markdown.py "{slides_filename}" \
+  --output-dir "slides" \
+  --theme romantic
+```
+
+**Theme Options**:
+- `romantic` - Purple/pink gradient, handwriting font (default)
+- `professional` - Dark navy gradient, clean sans-serif
+- `minimal` - Light background, dark text
+
+**What it does**:
+1. Parses markdown to find slides with `^` speaker notes
+2. Creates gradient background based on theme
+3. Renders title, body text, quotes
+4. Embeds images with EXIF rotation fix
+5. Outputs numbered JPEG images: `1.jpeg`, `2.jpeg`, ...
+
+### Step B3: Create Final Video
+
+```bash
+cd "{slides_directory}"
+python path/to/slides_to_video.py \
+  --slides-dir "slides" \
+  --audio-dir "audio" \
+  --output "{output_filename}.mp4"
+```
+
+Note: No `--crop-bottom` needed for Option B (images are already final size).
+
+### Option B Quick Reference
+
+```bash
+# Full workflow (no Deckset required)
+mkdir -p audio slides
+
+# Step 1: Generate audio
+python generate_audio.py "slides.md" --output-dir "audio"
+
+# Step 2: Generate slide images (choose theme)
+python create_slides_from_markdown.py "slides.md" \
+  --output-dir "slides" \
+  --theme romantic
+
+# Step 3: Create video
+python slides_to_video.py \
+  --slides-dir "slides" \
+  --audio-dir "audio" \
+  --output "presentation.mp4"
+```
+
+### Option B Limitations
+
+- **No emoji support**: Remove all emojis from titles before running
+- **Simple layouts**: Only center or side-by-side image placement
+- **Gradient backgrounds only**: No image backgrounds or complex themes
+- **Korean fonts**: Requires NanumPen (handwriting) or system fonts
+
+### When to Choose Each Option
+
+| Scenario | Recommended |
+|----------|-------------|
+| Professional presentation | Option A |
+| Complex slide layouts | Option A |
+| Emojis in titles | Option A |
+| Quick personal video | Option B |
+| No Deckset installed | Option B |
+| Simple photo slideshow | Option B |
+| Automated pipeline | Option B |

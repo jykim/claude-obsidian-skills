@@ -227,15 +227,17 @@ Main content visible to audience.
 
 ⚠️ **CRITICAL RULES**:
 
-1. **Use original images** from source when available
-2. **Copy missing images** to `_files_/` directory rather than substituting
-3. **Resolve paths per-image** - don't assume same directory
-4. **URL-encode spaces**: `my file.png` → `my%20file.png`
-5. **Escape special characters**:
+1. **NEVER invent images** - Only reference images that exist in the source document or `_files_/` folder. Do NOT create placeholder references like `background-xxx.png` for images that don't exist.
+2. **Use original images** from source when available
+3. **Copy missing images** to `_files_/` directory rather than substituting
+4. **Resolve paths per-image** - don't assume same directory
+5. **URL-encode spaces**: `my file.png` → `my%20file.png`
+6. **Escape special characters**:
    - Parentheses: `(` → `%28`, `)` → `%29`
    - Other special chars as needed
-6. **Verify existence** before referencing
-7. **Maintain semantic relevance** - image should match slide content
+7. **Verify existence** before referencing - run `ls` or glob to confirm file exists
+8. **Maintain semantic relevance** - image should match slide content
+9. **Section intros without images are OK** - If no background image exists for a section intro slide, just use the title and speaker notes without an image reference
 
 ### Image Position Standards
 
@@ -243,7 +245,9 @@ Main content visible to audience.
 
 ```
 Is it a section intro slide with just title?
-  → YES: Use ![]() for full background
+  → Does a background image exist?
+    → YES: Use ![]() for full background
+    → NO: Skip image, use title + speaker notes only
 
 Is it a diagram embedded in flowing text?
   → YES: Use ![inline]() or ![inline fill]()
@@ -357,8 +361,9 @@ paginate: true
 
 Before marking task complete, verify:
 
+- [ ] **No invented images** - every image reference points to a real file
 - [ ] All images have valid, URL-encoded paths
-- [ ] Image files exist at specified locations
+- [ ] Image files exist at specified locations (run `ls` to confirm)
 - [ ] Spaces in paths converted to `%20`
 - [ ] Special characters properly escaped
 - [ ] Speaker notes use `^ ` prefix (or HTML for Marp)
