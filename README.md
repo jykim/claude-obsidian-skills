@@ -32,6 +32,12 @@ Claude Obsidian Skills is a collection of AI agent skills designed to automate p
 | [markdown-video](markdown-video/) | Convert markdown slides to MP4 video with TTS narration (with or without Deckset) |
 | [video-cleaning](video-cleaning/) | Remove silent pauses from videos using AI-powered transcription and FFmpeg |
 
+### Image Skills
+
+| Skill | Description |
+|-------|-------------|
+| [image-generation-skill](image-generation-skill/) | Generate AI images for documents and slides with multiple visual styles (DALL-E) |
+
 ## Installation
 
 ### For Claude Code
@@ -96,6 +102,7 @@ Some skills require external dependencies. Install them before using:
 |-------|--------------|
 | markdown-video | FFmpeg, OpenAI API key, Python 3.7+, Pillow |
 | video-cleaning | FFmpeg, OpenAI API key, Python 3.7+ |
+| image-generation-skill | OpenAI API key, Python 3.7+ |
 | markdown-slides | None (markdown only) |
 | obsidian-* | None (file operations only) |
 | interactive-writing-assistant | None |
