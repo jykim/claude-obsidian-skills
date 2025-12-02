@@ -23,8 +23,14 @@ Claude Obsidian Skills is a collection of AI agent skills designed to automate p
 | Skill | Description |
 |-------|-------------|
 | [markdown-slides](markdown-slides/) | Create Deckset/Marp compatible presentation slides from markdown content |
-| [markdown-video](markdown-video/) | Convert markdown slides to MP4 video with TTS narration |
 | [interactive-writing-assistant](interactive-writing-assistant/) | AI-powered writing companion with outline-prose co-evolution and PKM integration |
+
+### Video Skills
+
+| Skill | Description |
+|-------|-------------|
+| [markdown-video](markdown-video/) | Convert markdown slides to MP4 video with TTS narration (with or without Deckset) |
+| [video-cleaning](video-cleaning/) | Remove silent pauses from videos using AI-powered transcription and FFmpeg |
 
 ## Installation
 
@@ -64,6 +70,7 @@ ln -s public-skills/obsidian-markdown-structure obsidian-markdown-structure
 ln -s public-skills/markdown-slides markdown-slides
 ln -s public-skills/markdown-video markdown-video
 ln -s public-skills/interactive-writing-assistant interactive-writing-assistant
+ln -s public-skills/video-cleaning video-cleaning
 ```
 
 3. Update skills when new versions are released:
@@ -79,6 +86,31 @@ git submodule update --remote
 **Note:** When cloning a vault with submodules, use `--recursive`:
 ```bash
 git clone --recursive your-vault-repo
+```
+
+## Requirements
+
+Some skills require external dependencies. Install them before using:
+
+| Skill | Requirements |
+|-------|--------------|
+| markdown-video | FFmpeg, OpenAI API key, Python 3.7+, Pillow |
+| video-cleaning | FFmpeg, OpenAI API key, Python 3.7+ |
+| markdown-slides | None (markdown only) |
+| obsidian-* | None (file operations only) |
+| interactive-writing-assistant | None |
+
+### Common Installation Commands
+
+```bash
+# FFmpeg (macOS)
+brew install ffmpeg
+
+# Python dependencies
+pip install Pillow openai
+
+# Set OpenAI API key
+export OPENAI_API_KEY="sk-..."
 ```
 
 ## Quick Start
@@ -101,6 +133,11 @@ Use markdown-slides to convert this document into a Deckset presentation
 ### Generate Video
 ```
 Use markdown-video to create a narrated video from my slides
+```
+
+### Clean Video
+```
+Use video-cleaning to remove silent pauses from this video
 ```
 
 ## Skill Structure
