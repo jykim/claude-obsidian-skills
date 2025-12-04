@@ -39,9 +39,9 @@ Activate this skill when the user:
 
 ## Workflow Options
 
-Choose between two workflows based on your needs:
+Choose between three workflows based on your needs:
 
-### Option A: With Deckset (Recommended for Complex Slides)
+### Option A: With Deckset + Composite Images (Notes Visible)
 **Best for**: Professional presentations, complex layouts, emoji support, multiple themes
 
 **Pros**:
@@ -72,6 +72,25 @@ Choose between two workflows based on your needs:
 - Simple slide layouts are sufficient
 - Emojis are not needed in titles
 - Deckset is not available
+
+### Option C: Deckset Direct (Fastest, Recommended)
+**Best for**: Quick video creation from Deckset presentations
+
+**Pros**:
+- Fewest steps (simplest workflow)
+- Perfect Deckset quality
+- No composite image generation needed
+- Works with existing Deckset exports
+
+**Cons**:
+- Requires audio mapping step when slides have mixed speaker notes
+- Notes text not visible in final video
+
+**Choose Option C when**:
+- You already have Deckset images exported
+- You want the fastest workflow
+- Notes visibility in video is not needed
+- Professional quality slides with minimal effort
 
 ---
 
@@ -333,6 +352,31 @@ pip install Pillow requests openai
 - Re-run create_slide_images.py
 - Check for parsing errors in markdown
 
+### Issue: Audio-slide sync mismatch (Deckset Direct)
+
+**Problem**: When using Deckset images directly (not composite), audio doesn't match slides
+**Cause**: Deckset exports ALL slides, but only some have speaker notes (and thus audio)
+**Solution**: Use `create_audio_mapping.py` to create properly mapped audio folder:
+
+```bash
+# Create mapped audio folder
+python create_audio_mapping.py "slides.md" \
+  --audio-dir "audio" \
+  --output-dir "audio-mapped"
+
+# Then use mapped audio with slides_to_video.py
+python slides_to_video.py \
+  --slides-dir "deckset-images" \
+  --audio-dir "audio-mapped" \
+  --output "presentation.mp4"
+```
+
+### Issue: Video duration too long (60% longer than expected)
+
+**Problem**: Video duration is significantly longer than sum of audio files
+**Cause**: ffmpeg `-t` option placed incorrectly (must come BEFORE `-i` for looped images)
+**Solution**: This was fixed in slides_to_video.py v1.1. Update to the latest version.
+
 ### Issue: Notes visible in video
 
 **Problem**: Forgot `--crop-bottom 720` parameter
@@ -471,6 +515,99 @@ python create_slide_images.py "slides.md" \
 
 ---
 
+## Option C: Deckset Direct Workflow (Simplest)
+
+Use this workflow when you want to use Deckset-exported images directly without creating composite images.
+
+**Best for**: Quick video creation from existing Deckset presentations
+
+**Pros**:
+- Simplest workflow (fewest steps)
+- Perfect Deckset rendering quality
+- No composite image generation needed
+
+**Cons**:
+- Requires audio mapping step when slides have inconsistent speaker notes
+- No speaker notes visible in video (notes text not included)
+
+### Step C1: Generate Audio Files
+
+```bash
+cd "{slides_directory}"
+python path/to/generate_audio.py "{slides_filename}" --output-dir "audio"
+```
+
+### Step C2: Export Images from Deckset (Manual)
+
+1. Open markdown file in Deckset
+2. File → Export → Export as Images
+3. Choose **JPEG format**, **Full size**
+4. Export **ALL slides**
+5. Save to folder: `deckset-images/`
+
+### Step C3: Create Audio Mapping
+
+**This step is CRITICAL** - maps Deckset images to correct audio files.
+
+```bash
+cd "{slides_directory}"
+python path/to/create_audio_mapping.py "{slides_filename}" \
+  --audio-dir "audio" \
+  --output-dir "audio-mapped"
+```
+
+**What it does**:
+- Parses markdown to identify which slides have speaker notes
+- Maps Deckset image numbers to correct audio file numbers
+- Creates `audio-mapped/` folder with properly named files
+
+**Example mapping output**:
+```
+  ✅ 1.jpeg       ← slide_0.mp3   → slide_0.mp3   | PKM 가이드라인
+  ⚪ 2.jpeg       ← (no audio - silent)           | 1. 개요
+  ✅ 3.jpeg       ← slide_1.mp3   → slide_2.mp3   | 정의
+  ⚪ 4.jpeg       ← (no audio - silent)           | 2. 기본 원칙
+  ✅ 5.jpeg       ← slide_2.mp3   → slide_4.mp3   | 사람과 AI를 위한 PKM
+```
+
+### Step C4: Create Final Video
+
+```bash
+cd "{slides_directory}"
+python path/to/slides_to_video.py \
+  --slides-dir "deckset-images" \
+  --audio-dir "audio-mapped" \
+  --output "{output_filename}.mp4"
+```
+
+Note: No `--crop-bottom` needed (images are already final size).
+
+### Option C Quick Reference
+
+```bash
+# Full workflow
+mkdir -p audio deckset-images audio-mapped
+
+# Step 1: Generate audio
+python generate_audio.py "slides.md" --output-dir "audio"
+
+# Step 2: Export images from Deckset (MANUAL)
+# → File → Export → Export as Images → JPEG → deckset-images/
+
+# Step 3: Create audio mapping
+python create_audio_mapping.py "slides.md" \
+  --audio-dir "audio" \
+  --output-dir "audio-mapped"
+
+# Step 4: Create video
+python slides_to_video.py \
+  --slides-dir "deckset-images" \
+  --audio-dir "audio-mapped" \
+  --output "presentation.mp4"
+```
+
+---
+
 ## Option B: Auto-Generate Workflow (No Deckset)
 
 Use this workflow when Deckset is not available or for quick video creation.
@@ -556,10 +693,12 @@ python slides_to_video.py \
 
 | Scenario | Recommended |
 |----------|-------------|
-| Professional presentation | Option A |
-| Complex slide layouts | Option A |
-| Emojis in titles | Option A |
-| Quick personal video | Option B |
+| Professional presentation with notes visible | Option A |
+| Complex slide layouts | Option A or C |
+| Emojis in titles | Option A or C |
+| Quick video from Deckset slides | **Option C** |
 | No Deckset installed | Option B |
 | Simple photo slideshow | Option B |
 | Automated pipeline | Option B |
+| Existing Deckset images available | **Option C** |
+| Fastest workflow with Deckset | **Option C** |

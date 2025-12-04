@@ -215,36 +215,41 @@ def create_video_segment(
 
     if audio:
         # With audio
+        # IMPORTANT: -t must come BEFORE -i for looped image to limit loop duration
         cmd = [
             'ffmpeg',
             '-loop', '1',
+            '-t', str(duration),
             '-i', str(image),
             '-i', str(audio),
             '-c:v', 'libx264',
-            '-t', str(duration),
             '-pix_fmt', 'yuv420p',
             '-vf', vf_string,
             '-c:a', 'aac',
             '-b:a', '192k',
-            '-shortest',
+            '-map', '0:v',
+            '-map', '1:a',
             '-y',
             str(output)
         ]
     else:
         # Without audio - create silent video
+        # IMPORTANT: -t must come BEFORE -i for looped image to limit loop duration
         cmd = [
             'ffmpeg',
             '-loop', '1',
+            '-t', str(duration),
             '-i', str(image),
             '-f', 'lavfi',
+            '-t', str(duration),
             '-i', 'anullsrc=channel_layout=stereo:sample_rate=44100',
             '-c:v', 'libx264',
-            '-t', str(duration),
             '-pix_fmt', 'yuv420p',
             '-vf', vf_string,
             '-c:a', 'aac',
             '-b:a', '192k',
-            '-shortest',
+            '-map', '0:v',
+            '-map', '1:a',
             '-y',
             str(output)
         ]
