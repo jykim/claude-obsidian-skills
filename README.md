@@ -17,6 +17,7 @@ Claude Obsidian Skills is a collection of AI agent skills designed to automate p
 | [obsidian-links](obsidian-links/) | Format, validate, and fix wiki links with proper filename, section, and folder conventions |
 | [obsidian-yaml-frontmatter](obsidian-yaml-frontmatter/) | Standardize YAML frontmatter properties with consistent formatting and naming |
 | [obsidian-markdown-structure](obsidian-markdown-structure/) | Validate and enforce markdown document structure, heading hierarchy, and organization |
+| [obsidian-mermaid](obsidian-mermaid/) | Create Obsidian-compatible Mermaid diagrams avoiding common errors (markdown in labels, wide layouts) |
 
 ### Markdown Skills
 
@@ -73,6 +74,7 @@ cd path/to/skills
 ln -s public-skills/obsidian-links obsidian-links
 ln -s public-skills/obsidian-yaml-frontmatter obsidian-yaml-frontmatter
 ln -s public-skills/obsidian-markdown-structure obsidian-markdown-structure
+ln -s public-skills/obsidian-mermaid obsidian-mermaid
 ln -s public-skills/markdown-slides markdown-slides
 ln -s public-skills/markdown-video markdown-video
 ln -s public-skills/interactive-writing-assistant interactive-writing-assistant
@@ -130,6 +132,11 @@ Use the obsidian-links skill to check and fix broken wiki links in my vault
 ### Standardize Frontmatter
 ```
 Use obsidian-yaml-frontmatter to ensure consistent properties across my notes
+```
+
+### Create Mermaid Diagrams
+```
+Use obsidian-mermaid to create a flowchart for this process
 ```
 
 ### Create Presentation
