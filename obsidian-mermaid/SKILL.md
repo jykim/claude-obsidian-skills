@@ -18,6 +18,46 @@ Activate when you need to:
 - Convert ASCII art to Mermaid
 - Fix Mermaid rendering errors in Obsidian
 
+## Core Principle: Simplicity First
+
+> **다이어그램은 한눈에 들어와야 한다**
+
+복잡한 다이어그램은 읽기 어렵다. 항상 최소한의 노드와 연결로 핵심만 표현하라.
+
+### Node Minimization
+
+**Before** (9개 노드):
+```mermaid
+flowchart LR
+    A[수집] --> B[정리] --> C[보관]
+    D[목표] --> E[학습] --> F[실행] --> G[측정] --> H[달성]
+```
+
+**After** (2개 노드 - 순차 흐름을 노드 내 텍스트로):
+```mermaid
+flowchart LR
+    A[수집 → 정리 → 보관]
+    B[목표 → 학습 → 실행 → 달성]
+```
+
+### Connection Minimization
+
+- 핵심 흐름만 표현, 세부사항은 본문에서 설명
+- 노드 5개 이하, 연결선 교차 금지
+- 복잡한 관계는 여러 개의 단순한 다이어그램으로 분리
+
+### Table vs Mermaid 선택
+
+| 형식 | 용도 | 예시 |
+|------|------|------|
+| **테이블** | 속성-값 매핑, 비교, 옵션 | 에너지 레벨별 작업 |
+| **Mermaid** | 흐름, 프로세스, 피드백 루프 | 입력→처리→출력 |
+| **인라인** | 단순 순차 흐름 | `A → B → C` |
+
+**원칙**: 같은 정보를 더 컴팩트하게 표현하는 형식 선택
+
+---
+
 ## Critical Rules
 
 ### 1. NO Markdown in Labels
