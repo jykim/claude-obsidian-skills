@@ -259,30 +259,39 @@ def create_video_segment(
 
 
 def concatenate_segments(segment_files: List[Path], output_file: Path) -> bool:
-    """Concatenate video segments into final video"""
+    """Concatenate video segments into final video using filter_complex.
 
-    # Create concat list file
-    concat_file = segment_files[0].parent / 'concat_list.txt'
+    Uses filter_complex concat instead of -f concat -c copy to ensure
+    proper audio/video synchronization across all segments.
+    """
 
-    with open(concat_file, 'w') as f:
-        for seg_file in segment_files:
-            f.write(f"file '{seg_file}'\n")
+    # Build inputs array
+    inputs = []
+    for seg_file in segment_files:
+        inputs.extend(['-i', str(seg_file)])
 
-    # Run ffmpeg concat
+    # Build filter_complex string: [0:v][0:a][1:v][1:a]...concat=n=N:v=1:a=1[vout][aout]
+    filter_parts = []
+    for i in range(len(segment_files)):
+        filter_parts.append(f"[{i}:v][{i}:a]")
+    filter_string = ''.join(filter_parts) + f"concat=n={len(segment_files)}:v=1:a=1[vout][aout]"
+
     cmd = [
-        'ffmpeg',
-        '-f', 'concat',
-        '-safe', '0',
-        '-i', str(concat_file),
-        '-c', 'copy',
-        '-y',
+        'ffmpeg', '-y',
+        *inputs,
+        '-filter_complex', filter_string,
+        '-map', '[vout]',
+        '-map', '[aout]',
+        '-c:v', 'libx264',
+        '-c:a', 'aac',
+        '-b:a', '192k',
         str(output_file)
     ]
 
     result = subprocess.run(cmd, capture_output=True, text=True)
 
-    # Cleanup
-    concat_file.unlink()
+    if result.returncode != 0:
+        print(f"\n⚠️  ffmpeg error: {result.stderr[:500]}")
 
     return result.returncode == 0
 
