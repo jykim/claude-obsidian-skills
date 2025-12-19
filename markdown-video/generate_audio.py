@@ -226,6 +226,13 @@ def main():
         help='Show what would be generated without generating'
     )
 
+    parser.add_argument(
+        '--limit',
+        type=int,
+        default=0,
+        help='Limit to first N slides with speaker notes (default: 0 = all)'
+    )
+
     args = parser.parse_args()
 
     # Validate input file
@@ -259,6 +266,11 @@ def main():
 
     print(f"   {len(slides_with_notes)} slides with speaker notes")
     print(f"   {len(slides_without_notes)} slides without speaker notes")
+
+    # Apply limit if specified
+    if args.limit > 0 and args.limit < len(slides_with_notes):
+        slides_with_notes = slides_with_notes[:args.limit]
+        print(f"📌 Limited to first {args.limit} slides")
 
     if slides_without_notes:
         print("\n⚠️  Slides without speaker notes (no audio will be generated):")

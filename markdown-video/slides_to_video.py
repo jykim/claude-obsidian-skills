@@ -360,6 +360,13 @@ def main():
         help='Remove bottom N pixels from each image. Use 720 for 1280x1440 composite images with notes (default: 0)'
     )
 
+    parser.add_argument(
+        '--limit',
+        type=int,
+        default=0,
+        help='Limit to first N slides (default: 0 = all slides)'
+    )
+
     args = parser.parse_args()
 
     # Check dependencies
@@ -403,6 +410,12 @@ def main():
         sys.exit(1)
 
     print(f"📸 Found {len(slide_images)} slide images")
+
+    # Apply limit if specified
+    if args.limit > 0 and args.limit < len(slide_images):
+        slide_images = slide_images[:args.limit]
+        print(f"📌 Limited to first {args.limit} slides")
+
     print()
 
     # Build slide-audio pairs

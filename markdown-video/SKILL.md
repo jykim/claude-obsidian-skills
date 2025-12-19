@@ -39,7 +39,7 @@ Activate this skill when the user:
 
 ## Workflow Options
 
-Choose between three workflows based on your needs:
+Choose between four workflows based on your needs:
 
 ### Option A: With Deckset + Composite Images (Notes Visible)
 **Best for**: Professional presentations, complex layouts, emoji support, multiple themes
@@ -91,6 +91,27 @@ Choose between three workflows based on your needs:
 - You want the fastest workflow
 - Notes visibility in video is not needed
 - Professional quality slides with minimal effort
+
+### Option D: Gemini Generated (Best Visual Quality)
+**Best for**: High-quality visual slides, complex concepts, infographic-style presentations
+
+**Pros**:
+- AI-generated high-quality visuals
+- Full emoji and Korean text support
+- Multiple visual styles (technical-diagram, professional, vibrant-cartoon, watercolor)
+- No Deckset installation required
+- Each slide is a unique, contextual illustration
+
+**Cons**:
+- API cost (~$0.04/slide with gemini-2.5-flash)
+- Generation time (~10 seconds/slide)
+- Less layout control than Deckset
+
+**Choose Option D when**:
+- You want the best visual quality
+- Creating content for YouTube or public sharing
+- Emojis and complex Korean text are needed
+- Deckset is not available but you want professional results
 
 ---
 
@@ -695,10 +716,108 @@ python slides_to_video.py \
 |----------|-------------|
 | Professional presentation with notes visible | Option A |
 | Complex slide layouts | Option A or C |
-| Emojis in titles | Option A or C |
+| Emojis in titles | Option A, C, or **D** |
 | Quick video from Deckset slides | **Option C** |
-| No Deckset installed | Option B |
+| No Deckset installed | Option B or **D** |
 | Simple photo slideshow | Option B |
-| Automated pipeline | Option B |
+| Automated pipeline | Option B or **D** |
 | Existing Deckset images available | **Option C** |
 | Fastest workflow with Deckset | **Option C** |
+| Best visual quality | **Option D** |
+| YouTube/public content | **Option D** |
+| Complex concepts/infographics | **Option D** |
+
+---
+
+## Option D: Gemini Generated Workflow (Best Quality)
+
+Use this workflow when you want AI-generated high-quality visual slides.
+
+**Best for**: YouTube videos, public presentations, complex concepts that benefit from visual illustration
+
+**Requirements**:
+- `GEMINI_API_KEY` environment variable set
+- Python packages: `google-genai`, `Pillow`
+
+### Step D1: Generate Audio Files
+
+Same as other options:
+
+```bash
+cd "{slides_directory}"
+python path/to/generate_audio.py "{slides_filename}" --output-dir "audio"
+```
+
+### Step D2: Generate Slide Images with Gemini
+
+```bash
+cd "{slides_directory}"
+python path/to/create_slides_gemini.py "{slides_filename}" \
+  --output-dir "slides-gemini" \
+  --style "technical-diagram" \
+  --auto-approve
+```
+
+**Style Options**:
+
+| Style | Description | Best For |
+|-------|-------------|----------|
+| `technical-diagram` | Clean lines, infographic icons, muted blue/gray | Technical presentations, education |
+| `professional` | Minimalist, muted colors, geometric shapes | Corporate, formal meetings |
+| `vibrant-cartoon` | Bright gradients, flat design, playful icons | Marketing, startups |
+| `watercolor` | Soft pastels, flowing organic shapes | Creative, personal content |
+
+**Other Parameters**:
+- `--model`: Gemini model (default: gemini-2.5-flash-preview-05-20)
+- `--aspect-ratio`: 16:9 (default), 1:1, 9:16, 4:3, 3:4
+- `--start-from N`: Resume from slide N (for failed runs)
+- `--dry-run`: Preview prompts without generating
+
+### Step D3: Create Final Video
+
+```bash
+cd "{slides_directory}"
+python path/to/slides_to_video.py \
+  --slides-dir "slides-gemini" \
+  --audio-dir "audio" \
+  --output "{output_filename}.mp4"
+```
+
+Note: No `--crop-bottom` needed (images are already final size).
+
+### Option D Quick Reference
+
+```bash
+# Full workflow (Gemini AI generated)
+mkdir -p audio slides-gemini
+
+# Step 1: Generate audio
+python generate_audio.py "slides.md" --output-dir "audio"
+
+# Step 2: Generate slide images with Gemini (choose style)
+python create_slides_gemini.py "slides.md" \
+  --output-dir "slides-gemini" \
+  --style "technical-diagram" \
+  --auto-approve
+
+# Step 3: Create video
+python slides_to_video.py \
+  --slides-dir "slides-gemini" \
+  --audio-dir "audio" \
+  --output "presentation.mp4"
+```
+
+### Option D Cost Estimation
+
+| Model | Cost/Slide | 50 Slides |
+|-------|------------|-----------|
+| gemini-2.5-flash | ~$0.04 | ~$2.00 |
+| gemini-3-pro-image-preview | ~$0.06 | ~$3.00 |
+
+### Option D Tips
+
+1. **Test first**: Run with `--dry-run` to preview prompts
+2. **Resume failed runs**: Use `--start-from N` to continue from slide N
+3. **Batch approval**: Press 'A' during interactive mode to approve all remaining
+4. **Style consistency**: Use the same style for all slides in a presentation
+5. **API rate limits**: Script includes 1-second delay between generations
