@@ -10,6 +10,12 @@ Claude Obsidian Skills is a collection of AI agent skills designed to automate p
 
 ## Available Skills
 
+### PKM Management Skills
+
+| Skill | Description |
+|-------|-------------|
+| [ai4pkm-agent](ai4pkm-agent/) | Comprehensive PKM agent for onboarding, orchestrator setup, and daily management with DDA handoff |
+
 ### Obsidian Skills
 
 | Skill | Description |
