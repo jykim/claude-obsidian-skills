@@ -1,6 +1,6 @@
 ---
 name: ai4pkm-helper
-description: AI4PKM helper for onboarding guidance, quick help, and seamless handoff to DDA for daily use. Integrates with Gobi Desktop and CLI workflows.
+description: AI4PKM helper for onboarding guidance, quick help, and Gobi Desktop/CLI workflow integration.
 metadata:
   version: 1.1.0
   author: lifidea
@@ -14,7 +14,7 @@ metadata:
 
 # AI4PKM Helper
 
-This skill provides guidance for setting up and using AI4PKM (AI for Personal Knowledge Management). It helps beginners through onboarding, directs users to appropriate resources (Gobi Desktop, CLI, Orchestrator), and hands off to DDA (Daily Driver Agent) for ongoing daily use.
+This skill provides guidance for setting up and using AI4PKM (AI for Personal Knowledge Management). It helps beginners through onboarding and directs users to appropriate resources (Gobi Desktop, CLI, Orchestrator).
 
 ## AI4PKM Architecture
 
@@ -80,7 +80,7 @@ Claude should automatically load this skill when:
 2. **Setup Vault**: Create 6 essential folders + AGENTS_beginner.md
 3. **Plugin Guide**: Install 3 must-have plugins (Templater, Calendar, Dataview)
 4. **First Journal**: Create today's journal interactively
-5. **AI Connection**: Verify Claude Code works → Handoff to DDA
+5. **AI Connection**: Verify Claude Code works
 
 **Prompts**:
 - `AI4PKM - Onboarding - Step 1 - Assessment.md`
@@ -92,13 +92,6 @@ Claude should automatically load this skill when:
 **Templates Used**:
 - `AGENTS_beginner.md`: Simplified agent rules for beginners
 - `daily_journal_template.md`: Daily journal template
-
-**Handoff to DDA**:
-After Step 5 completion:
-- Congratulate user on completing onboarding
-- Introduce DDA capabilities (daily briefing, journal help, schedule management)
-- Run handoff prompt: `AI4PKM - Handoff to DDA.md`
-- Activate DDA skill with user_level = "beginner"
 
 ### Module 2: Orchestrator Setup (워크플로우 자동화)
 
@@ -254,7 +247,7 @@ pollers:
 | **개념적 혼란** | AI4PKM이 뭔지 모르겠음 | 첫 안내에서 "AI로 지식 관리" 간단 설명 |
 | **기술적 장벽** | 터미널/CLI가 낯설음 | No-Code 경로 강조, Step 4 선택사항 |
 | **백지 공포증** | 뭐부터 해야 할지 막막함 | Step 3에서 **저널 먼저** → 빠른 성취감 |
-| **습관 형성** | 2-3주 후 이탈 | DDA Beginner Mode로 점진적 복잡도 |
+| **습관 형성** | 2-3주 후 이탈 | 점진적 복잡도 소개 |
 | **비개발자 불안** | "따라갈 수 있을까" | 친근한 말투, 이모지, 격려 메시지 |
 
 ### PKM 근본적 질문 대응
@@ -275,7 +268,7 @@ pollers:
 
 4. **"수집은 하는데 안 봄"**
    - 대응: Journal = Single Source of Truth로 통합
-   - DDA가 매일 저널 기반으로 브리핑
+   - 매일 저널 기반으로 정보 확인
 
 ### 비개발자 친화적 접근
 
@@ -297,72 +290,6 @@ pollers:
 | Level 2 | 15분 | + 토픽 정리 + AI 요약 |
 | Level 3 | 30분+ | + 워크플로우 자동화 |
 
-## Handoff to DDA Mechanism
-
-### Trigger Conditions
-- Onboarding Step 5 completed
-- User confirms "준비 완료" or similar
-
-### Handoff Process
-1. **Congratulations Message**:
-   ```
-   축하합니다! AI4PKM 온보딩이 완료되었어요! 🎉
-
-   이제부터는 제가 매일 여러분을 도와드릴게요.
-   ```
-
-2. **DDA Introduction**:
-   - Daily briefing ("오늘 일정 어때?")
-   - Journal help ("오늘 목표 뭐야?")
-   - Schedule management ("내일 3시에 미팅 추가")
-   - Thought organization ("이거 어떻게 생각해?")
-
-3. **First Interaction Example**:
-   ```
-   "오늘 일정 알려줘" 같은 거요.
-   편하게 말씀해주세요!
-   ```
-
-4. **Skill Transition**:
-   - Run handoff prompt
-   - Pass user_level = "beginner" to DDA
-   - Activate DDA skill
-   - Continue conversation context
-
-### Information Passed to DDA
-```yaml
-handoff_data:
-  user_level: beginner
-  completed_steps: [1, 2, 3, 4, 5]
-  vault_path: /path/to/vault
-  first_journal_date: 2025-12-10
-  preferred_mode: voice  # or text
-```
-
-## DDA Beginner Mode (신규)
-
-When DDA receives `user_level: beginner`:
-
-### Simplified Commands
-- "오늘 일정 알려줘" → Journal Schedules
-- "목표 추가해줘" → Interactive goal addition
-- "저널 쓰기 도와줘" → Guided journal writing
-- "미팅 추가" → Interactive schedule addition
-
-### Gradual Complexity Introduction
-
-| Week | Introduce | Example |
-|------|-----------|---------|
-| Week 1 | Basic commands only | Goals, Schedules, Notes |
-| Week 2 | Workflow concepts | "DIR 실행해줘" (with explanation) |
-| Week 3+ | Automation | Background Tasks, MCE/PLL/DDC |
-
-### Behavioral Changes
-- **Simpler explanations**: Avoid technical jargon
-- **More guidance**: Suggest next actions
-- **Less automation**: Confirm before auto-processing
-- **Encouraging tone**: Celebrate small wins
-
 ## Example Interactions
 
 ### Starting Onboarding
@@ -379,28 +306,14 @@ Agent: 좋아요! 처음부터 차근차근 안내해드릴게요.
 ### Completing Onboarding
 ```
 Agent: 축하합니다! 첫 저널도 만들었고, AI 연동도 확인했어요! ✅
-       이제부터는 매일 제가 도와드릴게요.
 
-       저는 이렇게 도울 수 있어요:
-       - 매일 아침 브리핑 ("오늘 일정 어때?")
-       - 저널 작성 도움 ("오늘 목표 뭐야?")
-       - 일정 추가/확인 ("내일 3시에 미팅 추가")
+       AI4PKM 온보딩이 완료되었습니다!
+       이제 다양한 기능을 활용해보세요:
+       - 클리핑 저장 및 AI 분석
+       - 저널 작성 및 리뷰
+       - 워크플로우 자동화 (Orchestrator)
 
-       편하게 말씀해주세요! "오늘 일정 알려줘" 같은 거요.
-
-       [DDA 활성화]
-```
-
-### First DDA Interaction (Beginner Mode)
-```
-User: 오늘 일정 알려줘
-DDA: [Journal 확인]
-     오늘은 일정이 없네요! 편하게 목표에 집중하실 수 있겠어요.
-
-     오늘 목표는:
-     - AI4PKM 익숙해지기
-
-     뭐 하고 싶으신 게 있으세요?
+       궁금한 점이 있으시면 언제든 물어보세요!
 ```
 
 ## Implementation Notes
@@ -437,7 +350,6 @@ _Settings_/Prompts/
 ├── AI4PKM - Onboarding - Step 1 - Assessment.md
 ├── AI4PKM - Onboarding - Step 2 - Setup Vault.md
 ├── AI4PKM - Onboarding - Step 4 - First Journal.md
-├── AI4PKM - Handoff to DDA.md
 └── ...
 
 _Settings_/Templates/
@@ -452,11 +364,6 @@ _Settings_/Templates/
 - [Second Brain Concept](obsidian://open?vault=AI4BM&file=Theory/Concepts/Second%20Brain)
 - [PKM Framework](obsidian://open?vault=AI4BM&file=Theory/Concepts/PKM%20Framework)
 - [AI4PKM Theory Series](obsidian://open?vault=AI4BM&file=Theory/AI4PKM/Overview)
-
-### Related Skills
-- **Daily Driver Agent (DDA)**: `_Settings_/Skills/daily-driver-agent/SKILL.md`
-  - Handles daily operations after onboarding
-  - Beginner Mode for new users
 
 ### Design Documents
 - `[[AI/Analysis/2025-12-10 AI4PKM Onboarding Agent Design - Claude Code]]`
@@ -500,18 +407,11 @@ _Settings_/Templates/
 - [ ] User completes all 5 steps within 30 minutes
 - [ ] Vault structure created correctly
 - [ ] First journal entry exists
-- [ ] User can interact with DDA naturally
-
-### Handoff Success
-- [ ] User understands DDA capabilities
-- [ ] First DDA interaction is successful
-- [ ] User feels confident to continue daily use
-- [ ] Beginner Mode activated properly
+- [ ] User can interact with Claude Code naturally
 
 ## Notes
 
 - **Focus on simplicity**: MVP for beginners only
 - **Voice-friendly**: Design for conversational interaction
 - **Quick wins**: Each step provides immediate value
-- **Smooth handoff**: Seamless transition to DDA
 - **Gradual learning**: Don't overwhelm with features
