@@ -138,14 +138,18 @@ nodes:
     executor: claude_code
 
   - type: agent
-    name: Meeting Conference Event (MCE)
+    name: Daily Driver Workflow (DDW)
     cron: "15,45 * * * *"
-    input_path: AI/Events
-    executor: claude_code
+    output_path: Journal
+    completion_status: IGNORE
     agent_params:
       calendars:
         - Default
         - Work
+      past_hours: 24
+      future_days: 3
+      goals_file: _Settings_/Goals & Principles.md
+      roundup_lookback_days: 7
 
 pollers:
   limitless:
@@ -155,10 +159,11 @@ pollers:
 ```
 
 **Node Types**:
+
 | Type | Trigger | Example |
 |------|---------|---------|
 | File-triggered | New/updated file in input_path | EIC, GDR |
-| Cron-scheduled | Time-based (cron expression) | MCE |
+| Cron-scheduled | Time-based (cron expression) | DDW |
 
 **설정 필드 참조**:
 
