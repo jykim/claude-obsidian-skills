@@ -1,6 +1,6 @@
 ---
 name: obsidian-mermaid
-description: Create Obsidian-compatible Mermaid diagrams. Avoid common errors like markdown in labels, use narrow TB layouts for publishing. Use when creating flowcharts, sequence diagrams, or any Mermaid diagrams in markdown files.
+description: Create Obsidian-compatible Mermaid diagrams. Prefer square layouts (TB + subgraph LR), avoid markdown in labels. Use when creating flowcharts, sequence diagrams, or any Mermaid diagrams in markdown files.
 allowed-tools:
   - Read
   - Edit
@@ -77,19 +77,33 @@ Node[Text]
 
 **Rule**: Keep labels plain text. Move complex descriptions outside the diagram.
 
-### 2. Use TB Direction (Narrow Width)
+### 2. Prefer Square Layout (정사각형 레이아웃)
 
-**Problem**: `flowchart LR` (left-right) creates wide diagrams that get cut off when published.
+**Problem**: `flowchart LR`은 너무 넓고, `flowchart TB`는 너무 길어진다.
 
-```markdown
-❌ Gets cut off:
-flowchart LR
+**Solution**: TB + 내부 LR 조합으로 정사각형에 가까운 레이아웃 만들기
 
-✅ Fits narrow screens:
+```mermaid
 flowchart TB
+    subgraph Layer1["레이어 1"]
+        direction LR
+        A[항목A] ~~~ B[항목B] ~~~ C[항목C]
+    end
+
+    subgraph Layer2["레이어 2"]
+        direction LR
+        D[항목D] ~~~ E[항목E]
+    end
+
+    Layer1 --> Layer2
 ```
 
-**Rule**: Default to `flowchart TB` (top-bottom) unless horizontal layout is essential.
+**패턴**:
+- `flowchart TB`: 전체 흐름은 위→아래
+- `direction LR`: 각 subgraph 내부는 가로 배치
+- `~~~`: 보이지 않는 연결 (화살표 없이 정렬용)
+
+**Rule**: 세로로 너무 길어지면 subgraph + `direction LR` 사용.
 
 ### 3. Keep Labels Short
 
@@ -186,7 +200,7 @@ Before completing diagram creation:
 
 - [ ] No `<br/>` tags in node labels
 - [ ] No numbered list format (`1.`, `2.`) in labels
-- [ ] Using `flowchart TB` direction (not LR)
+- [ ] **정사각형 레이아웃**: TB + subgraph 내 LR 조합 사용
 - [ ] All labels are short (under 15 characters)
 - [ ] Complex details moved to text outside diagram
 - [ ] No special characters in subgraph names

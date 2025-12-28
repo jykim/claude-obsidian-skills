@@ -20,6 +20,7 @@ Claude Obsidian Skills is a collection of AI agent skills designed to automate p
 
 | Skill | Description |
 |-------|-------------|
+| [obsidian-canvas](obsidian-canvas/) | Create and manage Obsidian Canvas files with automatic layout generation for knowledge maps and visual summaries |
 | [obsidian-links](obsidian-links/) | Format, validate, and fix wiki links with proper filename, section, and folder conventions |
 | [obsidian-yaml-frontmatter](obsidian-yaml-frontmatter/) | Standardize YAML frontmatter properties with consistent formatting and naming |
 | [obsidian-markdown-structure](obsidian-markdown-structure/) | Validate and enforce markdown document structure, heading hierarchy, and organization |
@@ -77,6 +78,7 @@ git submodule add https://github.com/jykim/claude-obsidian-skills.git path/to/sk
 2. Create symlinks for backward compatibility:
 ```bash
 cd path/to/skills
+ln -s public-skills/obsidian-canvas obsidian-canvas
 ln -s public-skills/obsidian-links obsidian-links
 ln -s public-skills/obsidian-yaml-frontmatter obsidian-yaml-frontmatter
 ln -s public-skills/obsidian-markdown-structure obsidian-markdown-structure
@@ -143,6 +145,11 @@ Use obsidian-yaml-frontmatter to ensure consistent properties across my notes
 ### Create Mermaid Diagrams
 ```
 Use obsidian-mermaid to create a flowchart for this process
+```
+
+### Create Visual Canvas
+```
+Use obsidian-canvas to create a knowledge map for this topic
 ```
 
 ### Create Presentation
