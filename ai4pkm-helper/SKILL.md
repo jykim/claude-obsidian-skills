@@ -1,19 +1,55 @@
 ---
-name: ai4pkm-agent
-description: AI4PKM comprehensive agent for onboarding, orchestrator setup, task management, and continuous support. Guides complete beginners through setup and seamlessly hands off to DDA for daily use.
+name: ai4pkm-helper
+description: AI4PKM helper for onboarding guidance, quick help, and seamless handoff to DDA for daily use. Integrates with Gobi Desktop and CLI workflows.
 metadata:
-  version: 1.0.0-mvp
+  version: 1.1.0
   author: lifidea
   created: 2025-12-10
+  updated: 2025-12-28
   modules:
     - onboarding
     - orchestrator
     - tasks
 ---
 
-# AI4PKM Agent
+# AI4PKM Helper
 
-This skill provides comprehensive guidance for setting up and using AI4PKM (AI for Personal Knowledge Management). It supports complete beginners through onboarding and configuration, then hands off to DDA (Daily Driver Agent) for ongoing daily use.
+This skill provides guidance for setting up and using AI4PKM (AI for Personal Knowledge Management). It helps beginners through onboarding, directs users to appropriate resources (Gobi Desktop, CLI, Orchestrator), and hands off to DDA (Daily Driver Agent) for ongoing daily use.
+
+## AI4PKM Architecture
+
+```mermaid
+flowchart BT
+    subgraph Gobi["Gobi Desktop"]
+        subgraph Storage["Storage"]
+            FS[File System]
+        end
+        subgraph Interface["Interface"]
+            OBS[Obsidian]
+            CC[Claude Code]
+        end
+        subgraph Core["Core"]
+            ORC[Orchestrator]
+            CLI[AI4PKM CLI]
+        end
+    end
+    Storage --> Interface --> Core
+```
+
+**3-tier model:**
+- **Storage**: Markdown files (AI-optimal format)
+- **Interface**: Obsidian for viewing/editing, Claude Code for AI interaction
+- **Core**: Orchestrator for automation, CLI for quick commands
+- **GUI**: Gobi Desktop wraps all above with visual interface
+
+## Learning Path
+
+| Stage | Target | Guide |
+|-------|--------|-------|
+| A. PKM 초보자 | 저장 습관 만들기 | Background reading |
+| B. Obsidian 입문 | 마이그레이션 + 익숙해지기 | (1) 터미널 설치 가이드 |
+| C. Claude Code 입문 | CLI Agent 설치 및 첫 대화 | (2) Gobi Desktop 가이드 |
+| D. 고급 사용자 | 자동화 + 커스텀 워크플로우 | (4) Orchestrator 설정 |
 
 ## When to Use This Skill
 
@@ -66,35 +102,81 @@ After Step 5 completion:
 
 ### Module 2: Orchestrator Setup (워크플로우 자동화)
 
-**Purpose**: Configure orchestrator.yaml for workflow automation
+**Purpose**: Configure orchestrator.yaml for event-driven automation
+
+→ **상세 가이드**: (4) Orchestrator 설정
 
 **Key Concepts**:
-- **Worker**: Background process that executes tasks
-- **Workflow**: Sequence of prompts to run
-- **Task**: Individual work items with status tracking
+- **Node**: Event-driven agent that triggers on file changes or schedules
+- **Executor**: AI engine to run (claude_code, codex_cli, gemini_cli)
+- **Poller**: External data sync (limitless, apple_photos, apple_notes)
 
 **Setup Process**:
 1. Explain orchestrator purpose and benefits
-2. Show orchestrator.yaml structure
-3. Use template: `orchestrator_template.yaml`
-4. Configure first workflow (e.g., DIR - Daily Ingestion and Roundup)
-5. Test workflow execution
+2. Show orchestrator.yaml structure (nodes, pollers, defaults)
+3. Configure first agent (e.g., EIC - Enrich Ingested Content)
+4. Test agent execution with file trigger
 
 **Prompt**: `AI4PKM - Orchestrator Setup.md`
 
-**Example Configuration**:
+**Example Configuration** (current format):
 ```yaml
-workers:
-  - name: daily-worker
-    mode: sequential
-    schedule: "0 */30 * * *"  # Every 30 minutes
+version: "1.0"
 
-workflows:
-  - name: DIR
-    tasks:
-      - prompt: "Process Life Logs (PLL)"
-      - prompt: "Daily Driver Cache (DDC)"
+orchestrator:
+  prompts_dir: _Settings_/Prompts
+  tasks_dir: _Settings_/Tasks
+  logs_dir: _Settings_/Logs
+  skills_dir: _Settings_/Skills
+  max_concurrent: 3
+  poll_interval: 1
+
+defaults:
+  executor: claude_code
+  timeout_minutes: 30
+  max_parallel: 3
+  task_create: true
+
+nodes:
+  - type: agent
+    name: Enrich Ingested Content (EIC)
+    input_path: Ingest/Clippings
+    output_path: AI/Articles
+    executor: claude_code
+
+  - type: agent
+    name: Meeting Conference Event (MCE)
+    cron: "15,45 * * * *"
+    input_path: AI/Events
+    executor: claude_code
+    agent_params:
+      calendars:
+        - Default
+        - Work
+
+pollers:
+  limitless:
+    enabled: true
+    target_dir: "Ingest/Limitless"
+    poll_interval: 300
 ```
+
+**Node Types**:
+| Type | Trigger | Example |
+|------|---------|---------|
+| File-triggered | New/updated file in input_path | EIC, GDR |
+| Cron-scheduled | Time-based (cron expression) | MCE |
+
+**설정 필드 참조**:
+
+| 필드 | 설명 |
+|------|------|
+| `name` | Agent 이름 |
+| `prompt` | 프롬프트 파일 참조 (ABBR) |
+| `input_path` | 입력 디렉토리 |
+| `output_path` | 출력 디렉토리 |
+| `executor` | 실행 엔진 (claude_code, codex_cli) |
+| `cron` | 스케줄 실행 (cron 표현식) |
 
 ### Module 3: Task Management (태스크 관리)
 
@@ -344,7 +426,7 @@ Each prompt is independent but connected:
 ## Files Structure
 
 ```
-_Settings_/Skills/ai4pkm-agent/
+_Settings_/Skills/ai4pkm-helper/
 ├── SKILL.md                    # This file
 └── modules/                    # (Future: detailed module guides)
     ├── onboarding.md
