@@ -2,7 +2,7 @@
 name: ai4pkm-helper
 description: AI4PKM helper for onboarding guidance, quick help, and Gobi Desktop/CLI workflow integration.
 metadata:
-  version: 1.1.0
+  version: 1.2.0
   author: lifidea
   created: 2025-12-10
   updated: 2025-12-28
@@ -173,8 +173,25 @@ pollers:
 | `prompt` | 프롬프트 파일 참조 (ABBR) |
 | `input_path` | 입력 디렉토리 |
 | `output_path` | 출력 디렉토리 |
-| `executor` | 실행 엔진 (claude_code, codex_cli) |
+| `executor` | 실행 엔진 (claude_code, codex_cli, gemini_cli) |
 | `cron` | 스케줄 실행 (cron 표현식) |
+| `workers` | Multi-Worker 설정 (여러 모델 동시 실행) |
+
+**Multi-Worker 설정** (여러 AI 모델 비교/평가):
+
+```yaml
+- type: agent
+  name: Article Summary Comparison
+  prompt: EIC
+  input_path: Ingest/Articles
+  workers:
+    - executor: gemini_cli
+      label: Gemini
+      output_path: AI/Summary/Gemini
+    - executor: claude_code
+      label: Claude
+      output_path: AI/Summary/Claude
+```
 
 ### Module 3: Task Management (태스크 관리)
 

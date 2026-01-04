@@ -10,13 +10,17 @@ Features:
 - Full Korean text and emoji support
 - 16:9 aspect ratio for presentations
 - No Deckset installation required
+- Delta updates: only regenerates changed slides (uses .slides_cache.json)
 
 Usage:
     python create_slides_gemini.py "slides.md" --output-dir "./slides-gemini"
     python create_slides_gemini.py "slides.md" --style technical-diagram --auto-approve
+    python create_slides_gemini.py "slides.md" --force  # Regenerate all
 """
 
 import argparse
+import hashlib
+import json
 import os
 import re
 import sys
@@ -24,6 +28,27 @@ import time
 from pathlib import Path
 from typing import List, Dict, Optional
 from io import BytesIO
+
+
+def compute_slide_hash(slide: Dict, style: str) -> str:
+    """Compute hash of slide content for change detection"""
+    content = f"{slide['title']}|{slide['body']}|{slide.get('table', '')}|{slide.get('mermaid', '')}|{style}"
+    return hashlib.md5(content.encode('utf-8')).hexdigest()
+
+
+def load_cache(cache_file: Path) -> Dict:
+    """Load cache from JSON file"""
+    if cache_file.exists():
+        try:
+            return json.loads(cache_file.read_text(encoding='utf-8'))
+        except (json.JSONDecodeError, IOError):
+            return {}
+    return {}
+
+
+def save_cache(cache_file: Path, cache: Dict):
+    """Save cache to JSON file"""
+    cache_file.write_text(json.dumps(cache, indent=2, ensure_ascii=False), encoding='utf-8')
 
 try:
     from google import genai
@@ -280,6 +305,8 @@ def main():
                         help='Start from slide number (for resuming)')
     parser.add_argument('--limit', type=int, default=0,
                         help='Limit number of slides to generate (0 = all)')
+    parser.add_argument('--force', action='store_true',
+                        help='Force regenerate all slides (ignore cache)')
 
     args = parser.parse_args()
 
@@ -321,27 +348,52 @@ def main():
     # Create output directory
     args.output_dir.mkdir(parents=True, exist_ok=True)
 
+    # Load cache for delta updates
+    cache_file = args.output_dir / '.slides_cache.json'
+    cache = {} if args.force else load_cache(cache_file)
+
+    # Determine which slides need regeneration
+    slides_to_generate = []
+    slides_unchanged = []
+
+    for slide in slides:
+        if slide['num'] < args.start_from:
+            continue
+        if args.limit > 0 and slide['num'] > args.limit:
+            continue
+
+        content_hash = compute_slide_hash(slide, args.style)
+        slide_key = f"{slide['num']}"
+        output_path = args.output_dir / f"{slide['num']}.jpeg"
+
+        # Check if regeneration needed
+        cached_hash = cache.get(slide_key, {}).get('hash')
+        if cached_hash == content_hash and output_path.exists():
+            slides_unchanged.append(slide)
+        else:
+            slide['content_hash'] = content_hash
+            slides_to_generate.append(slide)
+
+    # Report delta status
+    if slides_unchanged and not args.force:
+        print(f"\n✨ Delta update: {len(slides_unchanged)} slides unchanged, {len(slides_to_generate)} to regenerate")
+
+    if not slides_to_generate:
+        print("\n✅ All slide images are up to date!")
+        print(f"  Output: {args.output_dir}")
+        return
+
     # Initialize Gemini client
     client = genai.Client(api_key=api_key)
 
-    # Apply limit
-    slides_to_process = slides
-    if args.limit > 0:
-        slides_to_process = slides[:args.limit]
-        print(f"Limiting to first {args.limit} slides")
-
     # Generate slides
-    print(f"Generating {len(slides_to_process)} slide images...")
+    print(f"Generating {len(slides_to_generate)} slide images...")
     auto_approve_all = args.auto_approve
     generated = 0
     skipped = 0
     failed = 0
 
-    for slide in slides_to_process:
-        if slide['num'] < args.start_from:
-            print(f"  Skipping slide {slide['num']} (start-from={args.start_from})")
-            continue
-
+    for slide in slides_to_generate:
         output_path = args.output_dir / f"{slide['num']}.jpeg"
         prompt = convert_slide_to_prompt(slide, args.style)
 
@@ -370,6 +422,12 @@ def main():
         if success:
             print("Done")
             generated += 1
+            # Update cache
+            cache[f"{slide['num']}"] = {
+                'hash': slide['content_hash'],
+                'style': args.style,
+                'model': args.model
+            }
         else:
             print("FAILED")
             failed += 1
@@ -377,11 +435,16 @@ def main():
         # Rate limiting - be gentle with the API
         time.sleep(1)
 
+    # Save updated cache
+    save_cache(cache_file, cache)
+
     # Summary
     print()
     print("=" * 60)
     print(f"Complete!")
     print(f"  Generated: {generated}")
+    if slides_unchanged:
+        print(f"  Unchanged: {len(slides_unchanged)} (skipped)")
     print(f"  Skipped:   {skipped}")
     print(f"  Failed:    {failed}")
     print(f"  Output:    {args.output_dir}")

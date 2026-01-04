@@ -18,21 +18,47 @@ Usage:
     # Dry run - show what would be generated
     python generate_audio.py "slides.md" --dry-run
 
+    # Force regenerate all (ignore cache)
+    python generate_audio.py "slides.md" --force
+
 Features:
     - Parses Deckset markdown (slides separated by ---)
     - Extracts speaker notes from each slide
     - Generates Korean TTS using OpenAI API
     - Creates slide_0.mp3, slide_1.mp3, etc.
+    - Delta updates: only regenerates changed slides (uses .audio_cache.json)
     - Progress tracking and error handling
 """
 
 import argparse
+import hashlib
+import json
 import os
 import re
 import sys
 from pathlib import Path
 from typing import List, Dict, Optional
 import requests
+
+
+def compute_hash(text: str) -> str:
+    """Compute MD5 hash of text for change detection"""
+    return hashlib.md5(text.encode('utf-8')).hexdigest()
+
+
+def load_cache(cache_file: Path) -> Dict:
+    """Load cache from JSON file"""
+    if cache_file.exists():
+        try:
+            return json.loads(cache_file.read_text(encoding='utf-8'))
+        except (json.JSONDecodeError, IOError):
+            return {}
+    return {}
+
+
+def save_cache(cache_file: Path, cache: Dict):
+    """Save cache to JSON file"""
+    cache_file.write_text(json.dumps(cache, indent=2, ensure_ascii=False), encoding='utf-8')
 
 
 class ProgressBar:
@@ -233,6 +259,12 @@ def main():
         help='Limit to first N slides with speaker notes (default: 0 = all)'
     )
 
+    parser.add_argument(
+        '--force',
+        action='store_true',
+        help='Force regenerate all audio files (ignore cache)'
+    )
+
     args = parser.parse_args()
 
     # Validate input file
@@ -293,14 +325,46 @@ def main():
     # Create output directory
     args.output_dir.mkdir(parents=True, exist_ok=True)
 
+    # Load cache for delta updates
+    cache_file = args.output_dir / '.audio_cache.json'
+    cache = {} if args.force else load_cache(cache_file)
+
+    # Determine which slides need regeneration
+    slides_to_generate = []
+    slides_unchanged = []
+
+    for slide in slides_with_notes:
+        content_hash = compute_hash(slide['speaker_notes'])
+        slide_key = f"slide_{slide['slide_num']}"
+        output_file = args.output_dir / f"{slide_key}.mp3"
+
+        # Check if regeneration needed
+        cached_hash = cache.get(slide_key, {}).get('hash')
+        if cached_hash == content_hash and output_file.exists():
+            slides_unchanged.append(slide)
+        else:
+            slide['content_hash'] = content_hash
+            slides_to_generate.append(slide)
+
+    # Report delta status
+    if slides_unchanged and not args.force:
+        print(f"\n✨ Delta update: {len(slides_unchanged)} slides unchanged, {len(slides_to_generate)} to regenerate")
+
+    if not slides_to_generate:
+        print("\n✅ All audio files are up to date!")
+        print(f"\n📂 Output directory: {args.output_dir}")
+        total_size = sum(f.stat().st_size for f in args.output_dir.glob('slide_*.mp3'))
+        print(f"   Total size: {total_size / 1024 / 1024:.1f} MB")
+        return
+
     # Generate audio files
-    print(f"\n🎵 Generating {len(slides_with_notes)} audio files...")
-    progress = ProgressBar(len(slides_with_notes), prefix='Progress')
+    print(f"\n🎵 Generating {len(slides_to_generate)} audio files...")
+    progress = ProgressBar(len(slides_to_generate), prefix='Progress')
 
     success_count = 0
     failed_slides = []
 
-    for slide in slides_with_notes:
+    for slide in slides_to_generate:
         output_file = args.output_dir / f"slide_{slide['slide_num']}.mp3"
 
         success = generate_tts_audio(
@@ -313,6 +377,12 @@ def main():
 
         if success:
             success_count += 1
+            # Update cache
+            cache[f"slide_{slide['slide_num']}"] = {
+                'hash': slide['content_hash'],
+                'voice': args.voice,
+                'model': args.model
+            }
         else:
             failed_slides.append(slide['slide_num'])
 
@@ -320,11 +390,16 @@ def main():
 
     progress.finish()
 
+    # Save updated cache
+    save_cache(cache_file, cache)
+
     # Summary
     print()
     print("=" * 60)
     print(f"✅ Audio generation complete!")
-    print(f"   Successful: {success_count}/{len(slides_with_notes)} files")
+    print(f"   Generated: {success_count}/{len(slides_to_generate)} files")
+    if slides_unchanged:
+        print(f"   Unchanged: {len(slides_unchanged)} files (skipped)")
 
     if failed_slides:
         print(f"   Failed:     {len(failed_slides)} files (slides: {', '.join(map(str, failed_slides))})")

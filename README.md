@@ -44,7 +44,7 @@ Claude Obsidian Skills is a collection of AI agent skills designed to automate p
 
 | Skill | Description |
 |-------|-------------|
-| [image-generation-skill](image-generation-skill/) | Generate AI images for documents and slides with multiple visual styles (DALL-E) |
+| [gemini-image-skill](gemini-image-skill/) | Generate AI images using Google Gemini API with multiple models and aspect ratios |
 
 ## Installation
 
@@ -112,7 +112,7 @@ Some skills require external dependencies. Install them before using:
 |-------|--------------|
 | markdown-video | FFmpeg, OpenAI API key, Python 3.7+, Pillow |
 | video-cleaning | FFmpeg, OpenAI API key, Python 3.7+ |
-| image-generation-skill | OpenAI API key, Python 3.7+ |
+| gemini-image-skill | Gemini API key, Python 3.7+, google-genai, Pillow |
 | markdown-slides | None (markdown only) |
 | obsidian-* | None (file operations only) |
 | interactive-writing-assistant | None |
@@ -124,10 +124,11 @@ Some skills require external dependencies. Install them before using:
 brew install ffmpeg
 
 # Python dependencies
-pip install Pillow openai
+pip install Pillow openai google-genai
 
-# Set OpenAI API key
+# Set API keys
 export OPENAI_API_KEY="sk-..."
+export GEMINI_API_KEY="your-gemini-api-key"
 ```
 
 ## Quick Start
