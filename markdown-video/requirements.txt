@@ -1,0 +1,15 @@
+# markdown-video skill dependencies
+# Install with: pip install -r requirements.txt
+
+# TTS audio generation
+openai>=1.0.0
+
+# Image generation with Gemini
+google-genai>=1.0.0
+
+# Image processing
+Pillow>=10.0.0
+
+# Note: ffmpeg must be installed separately
+# macOS: brew install ffmpeg
+# Ubuntu: sudo apt install ffmpeg
