@@ -1,6 +1,6 @@
 # Video Cleaning Skill
 
-Automated video transcription and editing workflow that removes pauses and filler words from Korean videos using OpenAI Whisper API and FFmpeg.
+Automated video transcription and editing workflow that removes pauses and filler words from Korean videos using OpenAI Whisper API and MoviePy for frame-accurate cuts.
 
 ## When to Use This Skill
 
@@ -13,6 +13,12 @@ Use this skill when you need to:
 
 **Perfect for**: Presentation recordings, lecture videos, podcast recordings, interview footage, or any speaking video that needs cleaning.
 
+## Example Results
+
+See the before/after comparison:
+- **Before**: https://youtu.be/2jfRBlQ4veI (1:13 original)
+- **After**: https://youtu.be/ZTsFZs9w65M (0:45 edited, 39% reduction)
+
 ## Requirements
 
 ### System Requirements
@@ -23,6 +29,7 @@ Use this skill when you need to:
 
 ### Python Requirements
 - **OpenAI Python SDK**: `pip install openai`
+- **MoviePy**: `pip install moviepy` (video editing with frame accuracy)
 - **OpenAI API Key**: Set environment variable `OPENAI_API_KEY`
   - Get your API key from [platform.openai.com](https://platform.openai.com/)
   - Cost: ~$0.15 per 25-minute video (Whisper transcription)
@@ -46,9 +53,9 @@ This skill uses a **two-step workflow**:
 ### Step 2: Video Editing (`edit_video_remove_pauses.py`)
 1. Loads word-level transcript from Step 1
 2. Identifies long pauses between words (> 1.0 seconds by default)
-3. Identifies Korean filler words (어, 음, 아)
+3. Identifies Korean filler words (어, 음, 아, 이, 오, 저)
 4. Calculates which video segments to keep
-5. Uses FFmpeg to cut and reassemble video
+5. Uses MoviePy for frame-accurate cutting and reassembly
 6. Generates edited video and detailed report
 
 ## Conservative Editing Philosophy
@@ -57,7 +64,7 @@ This skill uses **conservative editing** to ensure safe, predictable results:
 
 ### What Gets Removed
 - ✅ **Long pauses** (>1.0 seconds of silence between words)
-- ✅ **Clear filler words**: 어, 음, 아 (Korean equivalents of "uh", "um", "ah")
+- ✅ **Clear filler words**: 어, 음, 아, 이, 오, 저 (Korean equivalents of "uh", "um", "ah", etc.)
 
 ### What Gets Kept
 - ✅ **Context-dependent words**: 이제, 뭐, 그, 좀, 네, 약간
@@ -129,12 +136,14 @@ python edit_video_remove_pauses.py "video.mp4" --padding 0.15
 
 # Specify transcript location (if not auto-detected)
 python edit_video_remove_pauses.py "video.mp4" --transcript "path/to/transcript.json"
+
+# Skip filler word removal (only remove pauses)
+python edit_video_remove_pauses.py "video.mp4" --no-fillers
 ```
 
 **Editing outputs**:
 - `video - edited.mov` (cleaned video)
 - `video - edited_edit_report.txt` (detailed report)
-- `temp_segments/` (temporary, auto-deleted after completion)
 
 ## Understanding the Edit Report
 
@@ -241,14 +250,13 @@ The scripts follow consistent naming patterns:
 
 ## Technical Details
 
-### FFmpeg Processing
+### MoviePy Processing
 
-The editing script uses FFmpeg in **codec copy mode** (`-c copy`):
-- ✅ **Fast**: No re-encoding, preserves original quality
-- ✅ **Efficient**: Processes segments in minutes, not hours
-- ⚠️ **Limitation**: Limited to keyframe boundaries
-  - May add ~0.8 seconds of padding per cut
-  - This is why segment count matters
+The editing script uses MoviePy for **frame-accurate cutting**:
+- ✅ **Precise**: Cuts at exact timestamps, not keyframe boundaries
+- ✅ **Accurate**: No ±1-2 second drift from keyframe limitations
+- ✅ **Quality**: Re-encodes with libx264/AAC for consistent output
+- ⚠️ **Slower**: Re-encoding takes more time than codec copy (worth it for accuracy)
 
 ### Minimum Segment Duration
 
@@ -308,19 +316,19 @@ Error: OPENAI_API_KEY environment variable not set
 export OPENAI_API_KEY="sk-..."  # Add to ~/.bashrc or ~/.zshrc
 ```
 
-### Edited Video Longer Than Expected
+### Edited Video Duration Mismatch
 
-This is normal due to FFmpeg padding at cut points:
-- Expected: ~0.5-1 minute longer than calculated duration
-- Reason: Codec copy mode adds padding at keyframes
-- **More segments = more padding**
+With MoviePy frame-accurate editing:
+- Duration should match calculated time very closely
+- If significantly different, check transcript timestamps
+- Re-run transcription if timestamps seem off
 
 ### Video Quality Issues
 
 If you notice quality degradation:
-- Check that FFmpeg is using `-c copy` mode (it should be)
 - Verify original video quality is good
-- Consider using `-c:v libx264` for re-encoding (slower but more control)
+- MoviePy uses libx264/AAC encoding with `preset=fast`
+- For higher quality, modify script to use `preset=slow`
 
 ## Performance Characteristics
 
@@ -330,10 +338,10 @@ If you notice quality degradation:
 - **Output size**: ~500 KB JSON for 25-minute video
 
 ### Editing (Step 2)
-- **Speed**: ~3-5 minutes for 25-minute video
-- **CPU usage**: Low (FFmpeg codec copy is fast)
-- **Disk space**: ~2x original video size during processing
-  - Temporary segments are auto-deleted after completion
+- **Speed**: ~5-10 minutes for 25-minute video (re-encoding)
+- **CPU usage**: High during encoding (uses 4 threads by default)
+- **Disk space**: ~1.5x original video size during processing
+- **Output quality**: High (libx264 + AAC encoding)
 
 ### Expected Time Savings
 
@@ -459,6 +467,12 @@ _Settings_/Skills/video-cleaning/
 ```
 
 ### Version History
+- **v2.0** (2026-01): MoviePy migration for frame accuracy
+  - Replaced FFmpeg codec-copy with MoviePy re-encoding
+  - Frame-accurate cuts (no keyframe limitations)
+  - Extended filler words: 어, 음, 아, 이, 오, 저
+  - Added `--no-fillers` option
+  - Smart tail_buffer for word endings preservation
 - **v1.0** (2024): Initial conservative mode release
   - Removed aggressive and smart clustering modes
   - Focused on reliable, predictable editing
@@ -488,10 +502,11 @@ _Settings_/Skills/video-cleaning/
 │   --pause-threshold 0.8    Remove pauses > 0.8s         │
 │   --padding 0.15           Add 0.15s padding at cuts    │
 │   --output "clean.mp4"     Custom output path           │
+│   --no-fillers             Skip filler word removal     │
 │                                                          │
 │ WHAT GETS REMOVED:                                      │
 │   ✓ Pauses > 1.0 seconds                                │
-│   ✓ Filler words: 어, 음, 아                            │
+│   ✓ Filler words: 어, 음, 아, 이, 오, 저                │
 │                                                          │
 │ EXPECTED RESULTS:                                       │
 │   • 5-10% time reduction                                │

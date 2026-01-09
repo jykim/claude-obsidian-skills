@@ -19,18 +19,20 @@ Options:
     --padding <sec>            Padding around cuts (default: 0.1)
     --preview                  Show what would be removed without editing
     --output <path>            Output file path (default: <input>_edited.mov)
+    --no-fillers               Skip filler word removal (only remove pauses)
 """
 
 import argparse
 import json
-import subprocess
 import sys
 from pathlib import Path
 from typing import List, Tuple, Dict
 
+from moviepy import VideoFileClip, concatenate_videoclips
+
 
 # Korean clear filler words (unambiguous)
-CLEAR_FILLERS = ['어', '음', '아']
+CLEAR_FILLERS = ['어', '음', '아', '이', '오', '저']
 
 
 def load_transcript(json_path: str) -> dict:
@@ -85,35 +87,38 @@ def generate_keep_segments(
     words: List[dict],
     pauses: List[Tuple[float, float, float]],
     fillers: List[Dict],
-    padding: float = 0.1
+    padding: float = 0.1,
+    tail_buffer: float = 0.15
 ) -> List[Tuple[float, float]]:
     """
     Generate list of video segments to KEEP (everything except pauses and fillers).
 
     Returns: List of (start, end) tuples for segments to keep
     """
-    # Create list of all time ranges to REMOVE
+    # Create list of all time ranges to REMOVE with type info
     remove_ranges = []
 
-    # Add pause ranges
+    # Add pause ranges (type: 'pause')
     for pause_start, pause_end, _ in pauses:
-        remove_ranges.append((pause_start, pause_end))
+        remove_ranges.append((pause_start, pause_end, 'pause'))
 
-    # Add filler word ranges
+    # Add filler word ranges (type: 'filler')
     for filler in fillers:
-        remove_ranges.append((filler['start'], filler['end']))
+        remove_ranges.append((filler['start'], filler['end'], 'filler'))
 
     # Sort by start time
     remove_ranges.sort(key=lambda x: x[0])
 
-    # Merge overlapping ranges
+    # Merge overlapping ranges (keep track if any filler is involved)
     merged_removes = []
-    for start, end in remove_ranges:
+    for start, end, rtype in remove_ranges:
         if merged_removes and start <= merged_removes[-1][1]:
-            # Overlapping or adjacent, merge
-            merged_removes[-1] = (merged_removes[-1][0], max(merged_removes[-1][1], end))
+            # Overlapping or adjacent, merge (mark as filler if either is filler)
+            prev_start, prev_end, prev_type = merged_removes[-1]
+            new_type = 'filler' if (prev_type == 'filler' or rtype == 'filler') else 'pause'
+            merged_removes[-1] = (prev_start, max(prev_end, end), new_type)
         else:
-            merged_removes.append((start, end))
+            merged_removes.append((start, end, rtype))
 
     # Generate KEEP segments (everything between removes)
     keep_segments = []
@@ -121,12 +126,17 @@ def generate_keep_segments(
     # Start from beginning of video
     current_time = 0.0
 
-    for remove_start, remove_end in merged_removes:
+    for remove_start, remove_end, remove_type in merged_removes:
         # Add segment before this removal (if it exists and has content)
-        if current_time < remove_start - padding:
-            keep_segments.append((current_time, remove_start - padding))
+        # Only add tail_buffer for pauses (silence), NOT for fillers (would include filler audio)
+        if current_time < remove_start:
+            if remove_type == 'pause':
+                segment_end = remove_start + tail_buffer
+            else:
+                segment_end = remove_start  # No buffer before filler words
+            keep_segments.append((current_time, segment_end))
 
-        # Move past this removal
+        # Move past this removal (add padding to skip any residual sound)
         current_time = remove_end + padding
 
     # Add final segment from last removal to end
@@ -145,85 +155,41 @@ def generate_keep_segments(
 
 
 def format_time(seconds: float) -> str:
-    """Format seconds to HH:MM:SS.mmm for FFmpeg."""
+    """Format seconds to HH:MM:SS.mmm for display."""
     hours = int(seconds // 3600)
     minutes = int((seconds % 3600) // 60)
     secs = seconds % 60
     return f"{hours:02d}:{minutes:02d}:{secs:06.3f}"
 
 
-def create_ffmpeg_concat_file(segments: List[Tuple[float, float]], video_path: str, output_path: str):
-    """Create FFmpeg concat demuxer file for segment assembly."""
-    temp_dir = Path(output_path).parent / "temp_segments"
-    temp_dir.mkdir(exist_ok=True)
+def edit_video_with_moviepy(video_path: str, keep_segments: List[Tuple[float, float]], output_path: str) -> bool:
+    """MoviePy를 사용한 프레임 단위 정확한 비디오 편집"""
+    try:
+        video = VideoFileClip(video_path)
 
-    concat_file = temp_dir / "concat_list.txt"
-    segment_files = []
+        clips = []
+        for i, (start, end) in enumerate(keep_segments):
+            clip = video.subclipped(start, end)
+            clips.append(clip)
+            print(f"Segment {i+1}/{len(keep_segments)}: {start:.2f} -> {end:.2f}")
 
-    with open(concat_file, 'w') as f:
-        for i, (start, end) in enumerate(segments):
-            segment_file = temp_dir / f"segment_{i:04d}.ts"
-            segment_files.append(segment_file)
-            f.write(f"file '{segment_file.absolute()}'\n")
+        final = concatenate_videoclips(clips)
+        final.write_videofile(
+            output_path,
+            codec="libx264",
+            audio_codec="aac",
+            preset="fast",
+            threads=4
+        )
 
-    return concat_file, segment_files, temp_dir
+        # 리소스 정리
+        video.close()
+        final.close()
+        return True
 
-
-def cut_video_segments(video_path: str, segments: List[Tuple[float, float]], segment_files: List[Path]) -> bool:
-    """Cut video into segments using FFmpeg."""
-    for i, ((start, end), segment_file) in enumerate(zip(segments, segment_files)):
-        duration = end - start
-
-        cmd = [
-            'ffmpeg',
-            '-y',  # Overwrite
-            '-ss', str(start),
-            '-i', video_path,
-            '-t', str(duration),
-            '-c', 'copy',  # Fast copy, no re-encoding
-            '-avoid_negative_ts', 'make_zero',
-            str(segment_file)
-        ]
-
-        result = subprocess.run(cmd, capture_output=True, text=True)
-
-        if result.returncode != 0:
-            print(f"Error cutting segment {i}: {result.stderr}", file=sys.stderr)
-            return False
-
-        print(f"Cut segment {i+1}/{len(segments)}: {format_time(start)} -> {format_time(end)}")
-
-    return True
-
-
-def concatenate_segments(concat_file: Path, output_path: str) -> bool:
-    """Concatenate video segments using FFmpeg."""
-    cmd = [
-        'ffmpeg',
-        '-y',
-        '-f', 'concat',
-        '-safe', '0',
-        '-i', str(concat_file),
-        '-c', 'copy',
-        output_path
-    ]
-
-    print(f"\nConcatenating {len(list(concat_file.parent.glob('segment_*.ts')))} segments...")
-    result = subprocess.run(cmd, capture_output=True, text=True)
-
-    if result.returncode != 0:
-        print(f"Error concatenating: {result.stderr}", file=sys.stderr)
+    except Exception as e:
+        print(f"Error: {e}", file=sys.stderr)
         return False
-
-    return True
-
-
-def cleanup_temp_files(temp_dir: Path):
-    """Remove temporary segment files."""
-    import shutil
-    if temp_dir.exists():
-        shutil.rmtree(temp_dir)
-        print(f"Cleaned up temporary files")
 
 
 def generate_report(
@@ -327,6 +293,7 @@ def main():
     parser.add_argument("--padding", type=float, default=0.1, help="Padding around cuts (seconds)")
     parser.add_argument("--preview", action="store_true", help="Preview without editing")
     parser.add_argument("--output", help="Output file path (default: <input>_edited.mov)")
+    parser.add_argument("--no-fillers", action="store_true", help="Skip filler word removal (only remove pauses)")
 
     args = parser.parse_args()
 
@@ -369,9 +336,13 @@ def main():
     pauses = identify_pauses(words, args.pause_threshold)
     print(f"Found {len(pauses)} pauses > {args.pause_threshold}s")
 
-    print(f"\nIdentifying clear filler words (어, 음, 아)...")
-    fillers = identify_filler_words(words)
-    print(f"Found {len(fillers)} filler word instances")
+    if args.no_fillers:
+        print(f"\nSkipping filler word removal (--no-fillers)")
+        fillers = []
+    else:
+        print(f"\nIdentifying clear filler words ({', '.join(CLEAR_FILLERS)})...")
+        fillers = identify_filler_words(words)
+        print(f"Found {len(fillers)} filler word instances")
 
     # Generate segments
     print(f"\nGenerating keep segments (padding: {args.padding}s)...")
@@ -390,29 +361,12 @@ def main():
 
     # Execute edit
     print(f"\nCreating edited video: {output_path}")
-    print("This may take several minutes...")
+    print("This may take a few minutes (re-encoding for frame accuracy)...")
 
-    # Create temp files
-    concat_file, segment_files, temp_dir = create_ffmpeg_concat_file(
-        keep_segments, str(video_path), output_path
-    )
+    if not edit_video_with_moviepy(str(video_path), keep_segments, output_path):
+        return 1
 
-    try:
-        # Cut segments
-        print("\nStep 1/2: Cutting video segments...")
-        if not cut_video_segments(str(video_path), keep_segments, segment_files):
-            return 1
-
-        # Concatenate
-        print("\nStep 2/2: Concatenating segments...")
-        if not concatenate_segments(concat_file, output_path):
-            return 1
-
-        print(f"\n✅ Success! Edited video saved to: {output_path}")
-
-    finally:
-        # Cleanup
-        cleanup_temp_files(temp_dir)
+    print(f"\n✅ Success! Edited video saved to: {output_path}")
 
     return 0
 
