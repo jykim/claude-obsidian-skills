@@ -1,13 +1,13 @@
 ---
 name: video-add-chapters
-description: Add chapters to videos by transcribing, analyzing, and generating structured markdown documents with YouTube chapter markers
+description: Add chapters to videos by transcribing, analyzing, and generating structured markdown documents with YouTube chapter markers. Optionally generate highlight videos.
 allowed-tools: [Read, Write, Bash, Glob]
 license: MIT
 ---
 
 # video-add-chapters
 
-Transcribe videos using Whisper API, automatically detect chapter boundaries, and generate structured markdown documents with YouTube chapter markers.
+Transcribe videos using Whisper API, automatically detect chapter boundaries, and generate structured markdown documents with YouTube chapter markers. Optionally create highlight videos from selected segments.
 
 ## When to Use This Skill
 
@@ -15,6 +15,7 @@ Transcribe videos using Whisper API, automatically detect chapter boundaries, an
 - Converting video transcripts into structured documentation
 - Generating YouTube chapter markers for video descriptions
 - Cleaning up raw transcripts into readable documents
+- **Creating highlight videos** from selected transcript segments
 
 ## Example Results
 
@@ -103,6 +104,87 @@ If chapter boundaries need adjustment:
 1. Edit `chapters.json` with corrected timestamps
 2. Re-run `generate_docs.py` to regenerate documents
 
+---
+
+## Highlight Video Generation (Optional)
+
+After completing the chapter workflow, you can create a highlight video by selecting specific segments from the transcript.
+
+### How It Works
+
+```mermaid
+flowchart LR
+    A[Transcript] --> B[Export Script]
+    B --> C[User Edits]
+    C --> D[Generate Video]
+    D --> E[Highlight.mp4]
+```
+
+### Quick Start
+
+```bash
+# After steps 1-4 above are complete...
+
+# 5. Export editable highlight script
+python export_highlight_script.py "video.mp4" \
+  --transcript "./output/video - transcript.json"
+
+# 6. Edit the script - delete unwanted lines (in any text editor)
+
+# 7. Generate highlight video
+python generate_highlights.py "./output/video - highlight_script.md"
+```
+
+### Step-by-Step Details
+
+**5. Export Highlight Script**
+```bash
+python export_highlight_script.py "video.mp4" --transcript "transcript.json" --output "highlights.md"
+```
+- Creates editable markdown with `[START-END]` timestamps
+- One segment per line for easy selection
+- Output: `{video} - highlight_script.md`
+
+**6. Edit the Script**
+- Open the `.md` file in any text editor
+- **Delete lines** you don't want in the highlight
+- Keep lines you want to include
+- Save the file
+
+**7. Generate Highlight Video**
+```bash
+python generate_highlights.py "highlight_script.md" --output "highlights.mp4" --padding 0.5 --title-duration 3
+```
+- Parses remaining `[START-END]` timestamps
+- Adds 0.5s padding before/after each segment to avoid mid-sentence cuts
+- Displays optional segment titles (yellow centered text) for 3 seconds
+- Merges all segments into single video using FFmpeg
+- Output: `{video} - highlights.mp4`
+
+### Highlight Script Format
+
+```markdown
+# Highlight Script: Video Title
+
+**Source Video**: /path/to/video.mp4
+**Total Duration**: 07:38
+
+---
+
+[00:00:01-00:00:08] {Intro} I am testing whether Gemini can install Community Vault.
+
+[00:00:08-00:00:24] {Setup} First I added the directory to Gemini using include directories.
+
+[00:01:12-00:01:30] It says it is updating.
+```
+
+**Format**: `[START-END] {Optional Title} Text content`
+- Titles in `{curly braces}` are optional
+- If provided, title appears as yellow centered text overlay for first 3 seconds
+- Delete unwanted lines, add titles, save, then run `generate_highlights.py`
+
+---
+
 ## File Structure
 
 ```
@@ -111,8 +193,10 @@ video-add-chapters/
 ├── requirements.txt            # Python dependencies
 ├── transcribe_video.py         # Step 1: Video → Transcript
 ├── suggest_chapters.py         # Step 2: Chapter boundary detection
-├── generate_docs.py            # Step 2: Document generation
+├── generate_docs.py            # Step 3: Document generation
 ├── clean_transcript.py         # Step 4: Transcript cleaning
+├── export_highlight_script.py  # Step 5: Export editable highlight script
+├── generate_highlights.py      # Step 7: Generate highlight video
 ├── templates/                  # Markdown templates
 │   ├── chapter.md
 │   ├── index.md
