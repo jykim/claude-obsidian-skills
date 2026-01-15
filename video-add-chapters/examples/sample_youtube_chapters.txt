@@ -1,0 +1,24 @@
+# YouTube Chapters for Tutorial Video
+
+Copy the following to your YouTube video description:
+
+---
+
+00:00 Introduction
+01:05 Vault Template Updates
+02:01 Updating Existing Vaults
+03:44 Data Collection Tools
+06:04 Recording Tools
+08:17 Using Readwise
+09:37 Ingestion Automation Tips
+12:41 Main: Content Organization Concepts
+13:37 Multi-Vault Management
+17:21 Community Vault
+22:02 Note Organization Practice
+25:07 Daily Roundup Generation
+30:50 Topic Roundup
+33:12 Topic Graph Creation
+37:58 Topic Selection Guide
+41:09 Break Announcement
+
+---
