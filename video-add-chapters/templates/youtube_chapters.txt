@@ -1,0 +1,12 @@
+# YouTube Chapters for {{video_name}}
+
+Copy the following to your YouTube video description:
+
+---
+
+{{chapter_markers}}
+
+---
+
+Note: YouTube requires chapters to start at 00:00
+Make sure the first chapter timestamp is exactly 00:00
