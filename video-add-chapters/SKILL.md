@@ -41,20 +41,30 @@ pip install -r requirements.txt
 flowchart TB
     subgraph Auto[Automatic Processing]
         direction LR
-        A[Video] --> B[Transcribe] --> C[Analyze] --> D[Generate]
+        A[Video] --> B[Transcribe] --> C[Analyze] --> D[Generate] --> E[Clean]
     end
-    subgraph Review[User Review]
-        E[Check Merged Doc]
+    subgraph Optional[Optional Review]
+        F[Check & Adjust]
     end
-    subgraph Final[Final Processing]
-        F[Clean Transcript]
-    end
-    Auto --> Review --> Final
+    Auto -.-> Optional -.-> Auto
 ```
+
+All steps run automatically without user intervention. Optional review step available if manual adjustment is needed.
 
 ## Usage
 
-### Step 1: Transcribe Video
+### Quick Start (Automated Pipeline)
+```bash
+# Run all steps automatically
+python transcribe_video.py "video.mp4" --language ko --output-dir "./output"
+python suggest_chapters.py "video.mp4" --output "chapters.json"
+python generate_docs.py "video.mp4" --chapters "chapters.json" --output-dir "./output"
+python clean_transcript.py "./output/merged_document.md" --backup
+```
+
+### Step-by-Step Details
+
+**1. Transcribe Video**
 ```bash
 python transcribe_video.py "video.mp4" --language ko --output-dir "./output"
 ```
@@ -63,27 +73,35 @@ python transcribe_video.py "video.mp4" --language ko --output-dir "./output"
 - Handles timestamp offsets automatically
 - Output: `{video} - transcript.json`
 
-### Step 2: Analyze and Generate Chapters
+**2. Detect Chapter Boundaries**
 ```bash
 python suggest_chapters.py "video.mp4" --output "chapters.json"
+```
+- Analyzes transcript for topic transitions
+- Uses transition signal patterns (not pauses)
+- Output: `chapters.json` with suggested boundaries
+
+**3. Generate Documents**
+```bash
 python generate_docs.py "video.mp4" --chapters "chapters.json" --output-dir "./output"
 ```
-- Detects chapter boundaries based on content (not pauses)
-- Uses transition signal patterns to detect topic changes
-- Generates: individual chapter files, index, merged document, YouTube chapters
+- Creates individual chapter markdown files
+- Generates merged document and index
+- Outputs YouTube chapter markers
 
-### Step 3: User Review
-- Review merged document for chapter boundaries
-- Adjust chapter definitions if needed and regenerate
-
-### Step 4: Clean Transcript
+**4. Clean Transcript**
 ```bash
-python clean_transcript.py "merged_document.md" --backup
+python clean_transcript.py "./output/merged_document.md" --backup
 ```
 - Removes filler words
 - Improves sentence structure
 - Enhances paragraph cohesion
 - Preserves timestamps and chapter boundaries
+
+### Optional: Manual Review
+If chapter boundaries need adjustment:
+1. Edit `chapters.json` with corrected timestamps
+2. Re-run `generate_docs.py` to regenerate documents
 
 ## File Structure
 
