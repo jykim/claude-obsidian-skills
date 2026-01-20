@@ -236,3 +236,156 @@ Before marking complete:
 - [ ] Slide images generated successfully
 - [ ] Video plays correctly with synced audio
 - [ ] Resolution is 1920x1080
+
+---
+
+## Image Generation Mode
+
+Two approaches for generating visuals:
+
+| Mode | Script | Best For |
+|------|--------|----------|
+| **Slide-by-Slide** | `create_slides_gemini.py` | Standard presentations, precise control |
+| **Section-based** | `generate_section_images.py` | Long presentations, infographic style |
+
+### When to Use Section-Based
+
+- Presentations with 20+ slides
+- Content naturally groups into logical sections
+- Prefer infographic overview per section vs. individual slides
+- Want to reduce API costs (fewer images)
+
+---
+
+## Section-Based Workflow (Alternative)
+
+For presentations with many slides, generate one infographic image per section instead of per slide.
+
+### Comparison
+
+| Aspect | Slide-by-Slide | Section-Based |
+|--------|---------------|---------------|
+| Images | 1 per slide | 1 per section |
+| Audio | Per slide | Per slide → merged by section |
+| Review | Direct in markdown | Video script document |
+| Best for | Short presentations | Long presentations (20+ slides) |
+
+### Step 1: Generate Audio Files
+
+Same as standard workflow:
+
+```bash
+cd "{slides_directory}"
+python /Users/lifidea/.claude/skills/markdown-video/generate_audio.py "{slides_filename}" --output-dir "audio"
+```
+
+### Step 2: Generate Section Infographic Images
+
+```bash
+cd "{slides_directory}"
+python /Users/lifidea/.claude/skills/markdown-video/generate_section_images.py "{slides_filename}" \
+  --output-dir "slides-section" \
+  --style "infographic"
+```
+
+**Style Options**:
+
+| Style | Description |
+|-------|-------------|
+| `infographic` | Clean professional with icons (default) |
+| `professional` | Minimalist corporate design |
+| `vibrant` | Bright gradients for marketing |
+| `technical` | Flowcharts and technical diagrams |
+
+**Other Parameters**:
+- `--start-from N`: Resume from section N
+- `--force`: Regenerate all images
+- `--dry-run`: Preview sections without generating
+- `--delay N`: Seconds between API calls (default: 2.0)
+
+### Step 3: Create Video Script (Optional)
+
+Generate a markdown document for reviewing narration:
+
+```bash
+cd "{slides_directory}"
+python /Users/lifidea/.claude/skills/markdown-video/create_video_script.py "{slides_filename}" \
+  --output "video_script.md" \
+  --image-dir "slides-section"
+```
+
+The script document shows:
+- Section images embedded
+- Speaker notes for each slide
+- Easy editing format
+
+### Step 4: Review & Edit Narration
+
+1. Open `video_script.md`
+2. Review narration in blockquotes
+3. Edit directly in the document
+4. Update original markdown file with changes
+5. Regenerate audio for changed slides:
+   ```bash
+   python generate_audio.py "slides.md" --output-dir "audio"
+   ```
+
+### Step 5: Create Section-Based Video
+
+```bash
+cd "{slides_directory}"
+python /Users/lifidea/.claude/skills/markdown-video/create_section_video.py \
+  --slides "{slides_filename}" \
+  --audio-dir "audio" \
+  --image-dir "slides-section" \
+  --output "presentation.mp4"
+```
+
+**With config file** (for custom section mappings):
+
+```bash
+python create_section_video.py \
+  --config "sections.json" \
+  --audio-dir "audio" \
+  --image-dir "slides-section" \
+  --output "presentation.mp4"
+```
+
+Config file format:
+```json
+{
+  "sections": [
+    {"id": 0, "name": "title", "audio_slides": [0]},
+    {"id": 1, "name": "introduction", "audio_slides": [1, 2, 3]},
+    {"id": 2, "name": "main_content", "audio_slides": [4, 5, 6, 7]}
+  ]
+}
+```
+
+---
+
+## Section-Based Quick Reference
+
+```bash
+cd "{slides_directory}"
+
+# Step 1: Generate audio
+python /Users/lifidea/.claude/skills/markdown-video/generate_audio.py "slides.md" --output-dir "audio"
+
+# Step 2: Generate section images
+python /Users/lifidea/.claude/skills/markdown-video/generate_section_images.py "slides.md" \
+  --output-dir "slides-section" \
+  --style "infographic"
+
+# Step 3 (optional): Create review document
+python /Users/lifidea/.claude/skills/markdown-video/create_video_script.py "slides.md" \
+  --output "video_script.md" \
+  --image-dir "slides-section"
+
+# Step 4: Create final video
+python /Users/lifidea/.claude/skills/markdown-video/create_section_video.py \
+  --slides "slides.md" \
+  --audio-dir "audio" \
+  --image-dir "slides-section" \
+  --output "presentation.mp4"
+```
