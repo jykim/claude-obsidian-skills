@@ -1,13 +1,13 @@
 ---
 name: video-add-chapters
-description: Add chapters to videos by transcribing, analyzing, and generating structured markdown documents with YouTube chapter markers
+description: Add chapters to videos by transcribing, analyzing, and generating structured markdown documents with YouTube chapter markers. Optionally generate highlight videos.
 allowed-tools: [Read, Write, Bash, Glob]
 license: MIT
 ---
 
 # video-add-chapters
 
-Transcribe videos using Whisper API, automatically detect chapter boundaries, and generate structured markdown documents with YouTube chapter markers.
+Transcribe videos using Whisper API, automatically detect chapter boundaries, and generate structured markdown documents with YouTube chapter markers. Optionally create highlight videos from selected segments.
 
 ## When to Use This Skill
 
@@ -15,6 +15,7 @@ Transcribe videos using Whisper API, automatically detect chapter boundaries, an
 - Converting video transcripts into structured documentation
 - Generating YouTube chapter markers for video descriptions
 - Cleaning up raw transcripts into readable documents
+- **Creating highlight videos** from selected transcript segments
 
 ## Example Results
 
@@ -103,6 +104,105 @@ If chapter boundaries need adjustment:
 1. Edit `chapters.json` with corrected timestamps
 2. Re-run `generate_docs.py` to regenerate documents
 
+---
+
+## Highlight Video Generation (Optional)
+
+After completing the chapter workflow, you can create a highlight video by selecting specific segments from the transcript.
+
+### Method 1: Annotation in Transcript (Recommended)
+
+Mark highlights directly in the transcript using `<u>` or `==` annotations.
+
+```mermaid
+flowchart LR
+    A[Transcript] --> B["Add <u> or ==marks=="]
+    B --> C[parse_highlight_annotations.py]
+    C --> D[Highlight Script]
+    D --> E[generate_highlights.py]
+    E --> F[Highlight.mp4]
+```
+
+**Quick Start:**
+```bash
+# 1. Open transcript markdown and add annotations:
+#    <u>text to highlight</u>  or  ==text to highlight==
+
+# 2. Parse annotations to generate highlight script
+python parse_highlight_annotations.py "transcript.md" --video "video.mp4"
+
+# 3. (Optional) Edit the generated highlight script to add titles
+
+# 4. Generate highlight video
+python generate_highlights.py "transcript - highlight_script.md" --padding 0.5
+```
+
+**Supported Annotation Formats:**
+- `<u>highlighted text</u>` - HTML underline (visible in most editors)
+- `==highlighted text==` - Markdown highlight (Obsidian compatible)
+
+**Features:**
+- Consecutive highlighted segments are automatically merged
+- End times calculated from next segment start
+- Auto-generates titles from first few words
+
+### Method 2: Manual Script Editing
+
+Export full transcript as editable script, then delete unwanted lines.
+
+```mermaid
+flowchart LR
+    A[Transcript] --> B[Export Script]
+    B --> C[User Deletes Lines]
+    C --> D[Generate Video]
+    D --> E[Highlight.mp4]
+```
+
+**Quick Start:**
+```bash
+# 1. Export editable highlight script
+python export_highlight_script.py "video.mp4" \
+  --transcript "./output/video - transcript.json"
+
+# 2. Edit the script - delete unwanted lines (in any text editor)
+
+# 3. Generate highlight video
+python generate_highlights.py "./output/video - highlight_script.md"
+```
+
+### Generate Highlight Video
+
+```bash
+python generate_highlights.py "highlight_script.md" --output "highlights.mp4" --padding 0.5 --title-duration 3
+```
+- Parses `[START-END]` timestamps from script
+- Adds 0.5s padding before/after each segment to avoid mid-sentence cuts
+- Displays optional segment titles (yellow centered text, Korean font) for 3 seconds
+- Merges all segments into single video using FFmpeg
+- Output: `{video} - highlights.mp4`
+
+### Highlight Script Format
+
+```markdown
+# Highlight Script: Video Title
+
+**Source Video**: /path/to/video.mp4
+
+---
+
+[00:00:09-00:00:21] {Gemini CLI 설정} 우선은 Gemini에다가 제가 현재 커뮤니티 볼트가...
+
+[01:46-02:15] {설치 완료} 네 설치가 된 것 같습니다. 볼트에서 확인해 볼까요.
+
+[03:56-04:01] 아웃박스 커뮤니티 폴더에 질문을 생성을 했어요.
+```
+
+**Format**: `[START-END] {Optional Title} Text content`
+- Titles in `{curly braces}` are optional
+- If provided, title appears as yellow centered text overlay (144px, Korean font supported)
+
+---
+
 ## File Structure
 
 ```
@@ -111,8 +211,11 @@ video-add-chapters/
 ├── requirements.txt            # Python dependencies
 ├── transcribe_video.py         # Step 1: Video → Transcript
 ├── suggest_chapters.py         # Step 2: Chapter boundary detection
-├── generate_docs.py            # Step 2: Document generation
+├── generate_docs.py            # Step 3: Document generation
 ├── clean_transcript.py         # Step 4: Transcript cleaning
+├── parse_highlight_annotations.py  # Parse <u> and == annotations from transcript
+├── export_highlight_script.py      # Export transcript as editable highlight script
+├── generate_highlights.py          # Generate highlight video from script
 ├── templates/                  # Markdown templates
 │   ├── chapter.md
 │   ├── index.md
