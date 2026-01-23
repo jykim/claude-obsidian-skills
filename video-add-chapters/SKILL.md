@@ -68,6 +68,9 @@ python clean_transcript.py "./output/merged_document.md" --backup
 **1. Transcribe Video**
 ```bash
 python transcribe_video.py "video.mp4" --language ko --output-dir "./output"
+
+# Skip if transcript already exists (useful for workflow integration)
+python transcribe_video.py "video.mp4" --skip-if-exists
 ```
 - Splits video into 15-minute chunks
 - Transcribes using Whisper API
@@ -254,8 +257,38 @@ Whisper API pricing: ~$0.006 per minute of audio
 
 ## Integration
 
+### Related Skills
+- **video-full-process**: Combined workflow with video-clean + chapter remapping
+- **video-cleaning**: Remove pauses and filler words
 - **shorts-extraction**: Extract chapters as short-form clips
 - **youtube-transcript**: Download YouTube video transcripts
+
+### Combined Workflow with video-clean
+
+Use `video-full-process` skill for a unified pipeline that:
+1. Transcribes once (saving ~50% API costs)
+2. Removes pauses and filler words
+3. Remaps chapter timestamps to cleaned video
+4. Embeds chapters into final video
+
+```bash
+# From video-full-process skill directory
+python process_video.py "video.mp4" --language ko
+```
+
+### Transcript Reuse
+
+The `--skip-if-exists` flag enables transcript reuse across skills:
+
+```bash
+# First transcription
+python transcribe_video.py "video.mp4"
+
+# Skip if already transcribed (reuses existing transcript)
+python transcribe_video.py "video.mp4" --skip-if-exists
+```
+
+This prevents duplicate API calls when multiple skills need the same transcript
 
 ## Reference: CHAPTERS Array Format
 

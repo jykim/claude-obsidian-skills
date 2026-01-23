@@ -140,6 +140,8 @@ def main():
     parser.add_argument("--output-dir", help="Output directory (default: same as video)")
     parser.add_argument("--keep-chunks", action="store_true",
                         help="Keep audio chunks after transcription")
+    parser.add_argument("--skip-if-exists", action="store_true",
+                        help="Skip transcription if transcript already exists")
 
     args = parser.parse_args()
 
@@ -154,6 +156,13 @@ def main():
 
     print(f"Video: {video_path}")
     print(f"Output: {output_dir}")
+
+    # Check if transcript already exists
+    json_path = output_dir / f"{video_name} - transcript.json"
+    if args.skip_if_exists and json_path.exists():
+        print(f"\nTranscript already exists: {json_path}")
+        print("Skipping transcription (use without --skip-if-exists to regenerate)")
+        return
 
     # Initialize OpenAI client
     client = OpenAI()
