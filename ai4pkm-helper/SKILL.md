@@ -1,20 +1,19 @@
 ---
 name: ai4pkm-helper
-description: AI4PKM helper for onboarding guidance, quick help, and Gobi Desktop/CLI workflow integration.
+description: AI4PKM helper for orchestrator configuration, worker management, and CLI workflow integration.
 metadata:
-  version: 1.2.0
+  version: 2.0.0
   author: lifidea
   created: 2025-12-10
-  updated: 2025-12-28
+  updated: 2026-01-24
   modules:
-    - onboarding
     - orchestrator
     - tasks
 ---
 
 # AI4PKM Helper
 
-This skill provides guidance for setting up and using AI4PKM (AI for Personal Knowledge Management). It helps beginners through onboarding and directs users to appropriate resources (Gobi Desktop, CLI, Orchestrator).
+This skill provides guidance for configuring and managing AI4PKM orchestrator and workers. It helps users set up agents, configure multi-worker execution, and manage CLI workflows.
 
 ## AI4PKM Architecture
 
@@ -42,67 +41,39 @@ flowchart BT
 - **Core**: Orchestrator for automation, CLI for quick commands
 - **GUI**: Gobi Desktop wraps all above with visual interface
 
-## Learning Path
-
-| Stage | Target | Guide |
-|-------|--------|-------|
-| A. PKM 초보자 | 저장 습관 만들기 | Background reading |
-| B. Obsidian 입문 | 마이그레이션 + 익숙해지기 | (1) 터미널 설치 가이드 |
-| C. Claude Code 입문 | CLI Agent 설치 및 첫 대화 | (2) Gobi Desktop 가이드 |
-| D. 고급 사용자 | 자동화 + 커스텀 워크플로우 | (4) Orchestrator 설정 |
-
 ## When to Use This Skill
 
 Claude should automatically load this skill when:
-- User requests "AI4PKM 시작" or "온보딩 시작"
-- User asks about setting up AI4PKM or Obsidian vault
-- User wants to configure orchestrator or workflows
-- User needs help adding tasks or understanding AI4PKM concepts
-- User is new to PKM and needs guided setup
+- User wants to add, modify, or remove agents/nodes in orchestrator.yaml
+- User wants to configure multi-worker execution (comparing AI models)
+- User wants to update orchestrator defaults (executor, timeout, max_parallel)
+- User wants to add or modify pollers (limitless, apple_photos, apple_notes)
+- User asks about CLI commands for orchestrator management
+- User needs help with orchestrator.yaml structure
 
 ## Quick Commands
 
 ```markdown
-"AI4PKM 시작" / "온보딩 시작" → Start Onboarding Module
+"워커 설정" / "Worker config" → Worker Configuration Guide
+"에이전트 추가" / "Add agent" → Add New Agent Node
+"폴러 설정" / "Poller config" → Poller Configuration
+"설정 보기" → Show Current Config (ai4pkm --show-config)
+"에이전트 목록" → List Agents (ai4pkm --list-agents)
 "Orchestrator 설정" → Orchestrator Setup Module
 "태스크 추가" → Task Management Module
-"도움말" → Show available modules and commands
 ```
 
 ## Core Modules
 
-### Module 1: Onboarding (초보자 셋업)
-
-**Purpose**: Guide complete beginners from zero to first journal entry
-
-**Flow** (5 steps):
-1. **Assessment**: Evaluate user level (3 simple questions)
-2. **Setup Vault**: Create 6 essential folders + AGENTS_beginner.md
-3. **Plugin Guide**: Install 3 must-have plugins (Templater, Calendar, Dataview)
-4. **First Journal**: Create today's journal interactively
-5. **AI Connection**: Verify Claude Code works
-
-**Prompts**:
-- `AI4PKM - Onboarding - Step 1 - Assessment.md`
-- `AI4PKM - Onboarding - Step 2 - Setup Vault.md`
-- `AI4PKM - Onboarding - Step 4 - First Journal.md`
-- `AI4PKM - Onboarding - Step 3 - Plugin Guide.md` (optional for MVP)
-- `AI4PKM - Onboarding - Step 5 - AI Connection.md` (optional for MVP)
-
-**Templates Used**:
-- `AGENTS_beginner.md`: Simplified agent rules for beginners
-- `daily_journal_template.md`: Daily journal template
-
-### Module 2: Orchestrator Setup (워크플로우 자동화)
+### Module 1: Orchestrator Setup (워크플로우 자동화)
 
 **Purpose**: Configure orchestrator.yaml for event-driven automation
-
-→ **상세 가이드**: (4) Orchestrator 설정
 
 **Key Concepts**:
 - **Node**: Event-driven agent that triggers on file changes or schedules
 - **Executor**: AI engine to run (claude_code, codex_cli, gemini_cli)
 - **Poller**: External data sync (limitless, apple_photos, apple_notes)
+- **Worker**: Execution unit within a node (supports multi-worker for model comparison)
 
 **Setup Process**:
 1. Explain orchestrator purpose and benefits
@@ -158,26 +129,42 @@ pollers:
     poll_interval: 300
 ```
 
-**Node Types**:
+### Node Configuration Fields Reference
+
+| 필드 | 필수 | 설명 | 예시 |
+|------|------|------|------|
+| `type` | ✓ | 노드 타입 | `agent` |
+| `name` | ✓ | Agent 이름 | `Enrich Ingested Content (EIC)` |
+| `prompt` | | 프롬프트 파일 참조 (ABBR) | `EIC` |
+| `input_path` | | 입력 디렉토리 (파일 트리거) | `Ingest/Clippings` |
+| `output_path` | | 출력 디렉토리 | `AI/Articles` |
+| `executor` | | 실행 엔진 | `claude_code`, `codex_cli`, `gemini_cli` |
+| `cron` | | 스케줄 실행 (cron 표현식) | `"15,45 * * * *"` |
+| `enabled` | | 활성화 여부 | `true` / `false` |
+| `timeout_minutes` | | 타임아웃 | `30` |
+| `completion_status` | | 완료 후 상태 | `DONE`, `IGNORE` |
+| `agent_params` | | Agent-specific 파라미터 | (object) |
+| `workers` | | Multi-Worker 설정 | (list) |
+
+### Node Types
 
 | Type | Trigger | Example |
 |------|---------|---------|
 | File-triggered | New/updated file in input_path | EIC, GDR |
 | Cron-scheduled | Time-based (cron expression) | DDW |
 
-**설정 필드 참조**:
+### Worker Configuration Fields
 
-| 필드 | 설명 |
-|------|------|
-| `name` | Agent 이름 |
-| `prompt` | 프롬프트 파일 참조 (ABBR) |
-| `input_path` | 입력 디렉토리 |
-| `output_path` | 출력 디렉토리 |
-| `executor` | 실행 엔진 (claude_code, codex_cli, gemini_cli) |
-| `cron` | 스케줄 실행 (cron 표현식) |
-| `workers` | Multi-Worker 설정 (여러 모델 동시 실행) |
+Multi-worker 설정 시 각 worker에 사용 가능한 필드:
 
-**Multi-Worker 설정** (여러 AI 모델 비교/평가):
+| 필드 | 설명 | 예시 |
+|------|------|------|
+| `executor` | 실행 엔진 | `claude_code`, `gemini_cli` |
+| `label` | Worker 식별 라벨 | `Claude`, `Gemini` |
+| `output_path` | Worker별 출력 경로 | `AI/Summary/Claude` |
+| `agent_params` | Worker별 파라미터 | (object) |
+
+**Multi-Worker 설정 예시** (여러 AI 모델 비교/평가):
 
 ```yaml
 - type: agent
@@ -191,9 +178,86 @@ pollers:
     - executor: claude_code
       label: Claude
       output_path: AI/Summary/Claude
+    - executor: codex_cli
+      label: Codex
+      output_path: AI/Summary/Codex
 ```
 
-### Module 3: Task Management (태스크 관리)
+### Poller Configuration
+
+Pollers sync external data sources to your vault.
+
+| Poller | 설명 | 주요 설정 |
+|--------|------|----------|
+| `limitless` | Limitless 라이프로그 동기화 | `target_dir`, `poll_interval` |
+| `apple_photos` | Apple Photos 동기화 | `target_dir`, `albums` |
+| `apple_notes` | Apple Notes 동기화 | `target_dir`, `folders` |
+
+**Poller 설정 예시**:
+
+```yaml
+pollers:
+  limitless:
+    enabled: true
+    target_dir: "Ingest/Limitless"
+    poll_interval: 300
+
+  apple_photos:
+    enabled: false
+    target_dir: "Ingest/Photos"
+    albums:
+      - "Screenshots"
+      - "PKM"
+
+  apple_notes:
+    enabled: false
+    target_dir: "Ingest/Notes"
+    folders:
+      - "Quick Notes"
+```
+
+### CLI Quick Reference
+
+| Command | 설명 |
+|---------|------|
+| `ai4pkm --show-config` | 현재 설정 보기 |
+| `ai4pkm --list-agents` | 에이전트 목록 |
+| `ai4pkm --run <agent>` | 특정 에이전트 실행 |
+| `ai4pkm --enable <agent>` | 에이전트 활성화 |
+| `ai4pkm --disable <agent>` | 에이전트 비활성화 |
+| `ai4pkm --status` | 실행 상태 확인 |
+| `ai4pkm --logs` | 로그 확인 |
+
+### Common Configuration Tasks
+
+#### Add New Agent
+
+1. Open `orchestrator.yaml`
+2. Add new node under `nodes:`:
+```yaml
+  - type: agent
+    name: Your New Agent (ABBR)
+    input_path: Ingest/YourFolder
+    output_path: AI/YourOutput
+    executor: claude_code
+```
+3. Create corresponding prompt in `_Settings_/Prompts/`
+
+#### Enable/Disable Agent
+
+```yaml
+  - type: agent
+    name: Some Agent
+    enabled: false  # Add this line to disable
+```
+
+#### Set Up Multi-Worker Comparison
+
+1. Replace single `executor` with `workers` list
+2. Define output_path per worker to separate results
+3. Use consistent labels for tracking
+
+### Module 2: Task Management (태스크 관리)
 
 **Purpose**: Add, update, and track tasks in AI4PKM system
 
@@ -225,117 +289,37 @@ pollers:
 
 ### Progress Updates
 - For long operations (10+ seconds), provide voice updates
-  - "지금 폴더 생성 중이에요..." / "플러그인 확인하는 중입니다..."
+  - "지금 설정 확인 중이에요..." / "에이전트 추가하는 중입니다..."
 - Keep user informed throughout process
-
-## User Level Detection
-
-### Assessment Questions (Step 1)
-1. **Obsidian 경험**: "옵시디언 써보신 적 있으세요?"
-   - 처음 / 들어봄 / 써봄 → beginner
-   - 몇 달 사용 → intermediate
-   - 1년+ 사용 → advanced
-
-2. **PKM 목적**: "노트 관리를 왜 하고 싶으세요?"
-   - 메모 정리 → beginner
-   - 지식 체계화 → intermediate
-   - 제2의 뇌 구축 → advanced
-
-3. **기존 시스템**: "지금 어떻게 노트 관리하세요?"
-   - 없음/종이 → beginner
-   - Notion/Evernote → intermediate
-   - 커스텀 시스템 → advanced
-
-### Level-Based Features
-
-| Level | Features | Approach |
-|-------|----------|----------|
-| Beginner | Onboarding only | Step-by-step guidance |
-| Intermediate | Onboarding + Orchestrator | Brief explanations |
-| Advanced | All modules | Direct to advanced features |
-
-**Note**: MVP focuses on beginners only. Intermediate/advanced users can skip to specific modules.
-
-## Community Feedback Integration
-
-커뮤니티 피드백 기반 온보딩 원칙:
-
-→ **피드백 소스**: [[AI/Events/2025-10-30 AI4PKM 커뮤니티 미팅 by Claude Code|커뮤니티 미팅]], [[Projects/AI4PKM/AI4PKM User Interview|User Interview]]
-
-### 핵심 이슈와 대응 전략
-
-| 이슈 | 문제 | 대응 |
-|------|------|------|
-| **개념적 혼란** | AI4PKM이 뭔지 모르겠음 | 첫 안내에서 "AI로 지식 관리" 간단 설명 |
-| **기술적 장벽** | 터미널/CLI가 낯설음 | No-Code 경로 강조, Step 4 선택사항 |
-| **백지 공포증** | 뭐부터 해야 할지 막막함 | Step 3에서 **저널 먼저** → 빠른 성취감 |
-| **습관 형성** | 2-3주 후 이탈 | 점진적 복잡도 소개 |
-| **비개발자 불안** | "따라갈 수 있을까" | 친근한 말투, 이모지, 격려 메시지 |
-
-### PKM 근본적 질문 대응
-
-**커뮤니티에서 제기된 질문들**:
-
-1. **"정리만 하고 학습이 안 됨"**
-   - 대응: Express 단계 강조 (Week 2+에서 창작/공유 소개)
-   - CODE 사이클: Capture → Organize → Distill → **Express**
-
-2. **"측정이 어려움"**
-   - 대응: 작은 성취 체크리스트로 가시화
-   - 예: "첫 저널 완성! 🎉", "7개 클리핑 달성!"
-
-3. **"개인마다 니즈 다름"**
-   - 대응: Assessment에서 맞춤형 경로 제공
-   - 미래: Importer Guide로 기존 데이터 마이그레이션 지원
-
-4. **"수집은 하는데 안 봄"**
-   - 대응: Journal = Single Source of Truth로 통합
-   - 매일 저널 기반으로 정보 확인
-
-### 비개발자 친화적 접근
-
-**No-Code 경로** (터미널 없이 사용 가능):
-- 웹 클리핑 → 자동 저장
-- 일기 작성
-- 토픽 인덱싱 (수동)
-- 주간 라운드업 (수동 트리거)
-
-**핵심 메시지**:
-> "완벽하지 않아도 됩니다. 일단 시작하세요."
-> "비개발자도 80%의 기능을 터미널 없이 사용할 수 있어요."
-
-### 시간 가이드 (레벨별)
-
-| 레벨 | 일일 시간 | 가능한 것 |
-|------|----------|-----------|
-| Level 1 | 5분 | 클리핑 + 일기 한 줄 |
-| Level 2 | 15분 | + 토픽 정리 + AI 요약 |
-| Level 3 | 30분+ | + 워크플로우 자동화 |
 
 ## Example Interactions
 
-### Starting Onboarding
+### Adding an Agent
 ```
-User: AI4PKM 시작
-Agent: AI4PKM에 오신 걸 환영합니다! 🎉
-        먼저 몇 가지만 여쭤볼게요.
-        옵시디언 써보신 적 있으세요?
-User: 처음이에요
-Agent: 좋아요! 처음부터 차근차근 안내해드릴게요.
-       [Step 1 프롬프트 실행]
+User: 에이전트 추가해줘
+Agent: 어떤 에이전트를 추가할까요?
+       - 파일 기반 (input_path 필요)
+       - 스케줄 기반 (cron 필요)
+User: 파일 기반, Ingest/Articles 폴더 감시해서 AI/Summaries에 요약 저장
+Agent: 다음 설정으로 추가할게요:
+       - name: Article Summarizer
+       - input_path: Ingest/Articles
+       - output_path: AI/Summaries
+       - executor: claude_code
+       프롬프트는 어떤 걸 사용할까요?
 ```
 
-### Completing Onboarding
+### Configuring Multi-Worker
 ```
-Agent: 축하합니다! 첫 저널도 만들었고, AI 연동도 확인했어요! ✅
-
-       AI4PKM 온보딩이 완료되었습니다!
-       이제 다양한 기능을 활용해보세요:
-       - 클리핑 저장 및 AI 분석
-       - 저널 작성 및 리뷰
-       - 워크플로우 자동화 (Orchestrator)
-
-       궁금한 점이 있으시면 언제든 물어보세요!
+User: 여러 모델로 비교하고 싶어
+Agent: Multi-worker 설정을 도와드릴게요.
+       어떤 모델들을 비교할까요?
+       - claude_code (Claude)
+       - gemini_cli (Gemini)
+       - codex_cli (Codex)
+User: Claude랑 Gemini
+Agent: 각 모델 결과를 어디에 저장할까요?
+       예: AI/Compare/Claude, AI/Compare/Gemini
 ```
 
 ## Implementation Notes
@@ -364,76 +348,57 @@ Each prompt is independent but connected:
 _Settings_/Skills/ai4pkm-helper/
 ├── SKILL.md                    # This file
 └── modules/                    # (Future: detailed module guides)
-    ├── onboarding.md
     ├── orchestrator.md
     └── tasks.md
 
 _Settings_/Prompts/
-├── AI4PKM - Onboarding - Step 1 - Assessment.md
-├── AI4PKM - Onboarding - Step 2 - Setup Vault.md
-├── AI4PKM - Onboarding - Step 4 - First Journal.md
+├── AI4PKM - Orchestrator Setup.md
+├── AI4PKM - Add Task.md
 └── ...
 
-_Settings_/Templates/
-├── AGENTS_beginner.md
-├── daily_journal_template.md
-└── orchestrator_template.yaml
+orchestrator.yaml               # Main config file (vault root)
 ```
 
 ## References
 
-### AI4BM Theory Documents
-- [Second Brain Concept](obsidian://open?vault=AI4BM&file=Theory/Concepts/Second%20Brain)
-- [PKM Framework](obsidian://open?vault=AI4BM&file=Theory/Concepts/PKM%20Framework)
-- [AI4PKM Theory Series](obsidian://open?vault=AI4BM&file=Theory/AI4PKM/Overview)
+### Documentation
+- Orchestrator config reference: `orchestrator.yaml`
+- CLI documentation: `ai4pkm --help`
 
 ### Design Documents
 - `[[AI/Analysis/2025-12-10 AI4PKM Onboarding Agent Design - Claude Code]]`
-  - Original 4-week design (comprehensive reference)
 
 ## Troubleshooting
 
 ### Common Issues
 
-**"폴더가 이미 있어요"**
-→ 괜찮습니다! 기존 파일은 건드리지 않고 필요한 것만 추가할게요.
+**"에이전트가 실행 안 돼요"**
+→ `ai4pkm --status`로 상태 확인 후, 로그 확인: `ai4pkm --logs`
 
-**"플러그인 설치가 안 돼요"**
-→ Obsidian 설정 → 커뮤니티 플러그인 → "제한 모드 해제" 확인해주세요.
+**"폴러가 동작 안 해요"**
+→ `pollers:` 섹션에서 `enabled: true` 확인, poll_interval 값 확인
 
-**"저널 템플릿이 안 보여요"**
-→ Templater 플러그인 설정에서 템플릿 폴더를 `_Settings_/Templates`로 지정해주세요.
+**"Multi-worker 결과가 섞여요"**
+→ 각 worker에 다른 `output_path` 지정했는지 확인
 
-**"음성 모드가 안 돼요"**
-→ 텍스트로도 괜찮아요! 음성은 선택 사항입니다.
+**"cron이 트리거 안 돼요"**
+→ cron 표현식 문법 확인, `ai4pkm --status`로 다음 실행 시간 확인
+
+**"설정 변경이 반영 안 돼요"**
+→ orchestrator 재시작 필요: `ai4pkm --restart`
 
 ## Future Enhancements
 
-### Post-MVP (v1.1+)
-- Notion migration assistant
-- Best practices guide module
-- Advanced workflow configuration
-- Habit tracking integration
-- Community resource links
-
-### Long-term Vision
-- Multi-vault setup support
-- Team collaboration setup
-- Custom workflow builder
-- Performance analytics
-- Mobile setup guide
-
-## Success Criteria
-
-### Onboarding Success
-- [ ] User completes all 5 steps within 30 minutes
-- [ ] Vault structure created correctly
-- [ ] First journal entry exists
-- [ ] User can interact with Claude Code naturally
+### Planned (v2.1+)
+- GUI-based config editor (Gobi Desktop)
+- Agent template library
+- Performance monitoring dashboard
+- Webhook triggers support
+- Remote execution support
 
 ## Notes
 
-- **Focus on simplicity**: MVP for beginners only
-- **Voice-friendly**: Design for conversational interaction
-- **Quick wins**: Each step provides immediate value
-- **Gradual learning**: Don't overwhelm with features
+- **Config validation**: Always validate YAML syntax before saving
+- **Backup**: Keep backup of working orchestrator.yaml
+- **Testing**: Test new agents with small input sets first
+- **Logging**: Check logs for troubleshooting execution issues
