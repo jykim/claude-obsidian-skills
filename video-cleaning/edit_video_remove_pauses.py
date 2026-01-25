@@ -381,6 +381,7 @@ def main():
     parser.add_argument("--no-fillers", action="store_true", help="Skip filler word removal (only remove pauses)")
     parser.add_argument("--skip-indicator", type=float, default=5.0,
                         help="Show 'Skipping X secs' for pauses >= this value (0 to disable)")
+    parser.add_argument("--output-pauses", help="Save pauses data to JSON file for chapter remapping")
 
     args = parser.parse_args()
 
@@ -430,6 +431,24 @@ def main():
         print(f"\nIdentifying clear filler words ({', '.join(CLEAR_FILLERS)})...")
         fillers = identify_filler_words(words)
         print(f"Found {len(fillers)} filler word instances")
+
+    # Save pauses data if requested (for chapter remapping)
+    if args.output_pauses:
+        pauses_data = {
+            "source_video": str(video_path),
+            "transcript": str(transcript_path),
+            "pause_threshold": args.pause_threshold,
+            "pauses": [
+                {"start": start, "end": end, "duration": duration}
+                for start, end, duration in pauses
+            ],
+            "fillers": fillers,
+            "total_pause_time": sum(p[2] for p in pauses),
+            "total_filler_count": len(fillers)
+        }
+        with open(args.output_pauses, 'w', encoding='utf-8') as f:
+            json.dump(pauses_data, f, ensure_ascii=False, indent=2)
+        print(f"\nPauses data saved to: {args.output_pauses}")
 
     # Generate segments
     print(f"\nGenerating keep segments (padding: {args.padding}s)...")

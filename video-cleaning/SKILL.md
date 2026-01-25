@@ -139,6 +139,9 @@ python edit_video_remove_pauses.py "video.mp4" --transcript "path/to/transcript.
 
 # Skip filler word removal (only remove pauses)
 python edit_video_remove_pauses.py "video.mp4" --no-fillers
+
+# Save pauses data for chapter remapping (used by video-full-process)
+python edit_video_remove_pauses.py "video.mp4" --output-pauses "video - pauses.json"
 ```
 
 **Editing outputs**:
@@ -271,6 +274,83 @@ Whisper API provides timestamps accurate to ~0.01 seconds:
 - Precise enough for clean cuts between words
 - Allows surgical removal of specific words
 - Enables accurate pause detection
+
+### Cut Parameters: padding & tail_buffer
+
+두 파라미터는 컷 지점의 정확도를 조절합니다. Whisper 타임스탬프가 완벽하지 않기 때문에 버퍼가 필요합니다.
+
+```mermaid
+gantt
+    title 원본 오디오 타임라인
+    dateFormat X
+    axisFormat %s
+
+    section 원본
+    단어 A          :a, 0, 2
+    휴지 (침묵)      :crit, pause, 2, 5
+    단어 B          :b, 5, 8
+```
+
+```mermaid
+flowchart LR
+    subgraph 원본["원본 오디오"]
+        direction LR
+        A["🗣️ 단어 A<br/>0-2초"]
+        P["🔇 휴지<br/>2-5초"]
+        B["🗣️ 단어 B<br/>5-8초"]
+        A --> P --> B
+    end
+```
+
+```mermaid
+flowchart TB
+    subgraph params["파라미터 작동 원리"]
+        direction TB
+
+        subgraph timeline["타임라인 (초)"]
+            direction LR
+            t0["0"] ~~~ t2["2"] ~~~ t5["5"] ~~~ t8["8"]
+        end
+
+        subgraph original["원본"]
+            direction LR
+            wordA["단어 A<br/>0~2초"]
+            pause["휴지<br/>2~5초"]
+            wordB["단어 B<br/>5~8초"]
+            wordA --> pause --> wordB
+        end
+
+        subgraph cuts["컷 포인트"]
+            direction LR
+            tail["◀── tail_buffer<br/>휴지 시작점을<br/>0.15초 뒤로 연장"]
+            pad["padding ──▶<br/>휴지 끝점에서<br/>0.1초 건너뜀"]
+        end
+
+        subgraph result["편집 결과"]
+            direction LR
+            keepA["✅ 유지: 0 ~ 2.15초<br/>(단어A + tail_buffer)"]
+            remove["❌ 제거: 2.15 ~ 5.1초"]
+            keepB["✅ 유지: 5.1 ~ 8초<br/>(padding 후 단어B)"]
+            keepA --> remove --> keepB
+        end
+    end
+
+    style pause fill:#ffcccc
+    style remove fill:#ffcccc
+    style keepA fill:#ccffcc
+    style keepB fill:#ccffcc
+```
+
+**파라미터 요약:**
+
+| 파라미터 | 기본값 | 역할 | 값을 늘리면 |
+|---------|--------|------|------------|
+| `--tail-buffer` | 0.15초 | 휴지 **시작 전** 음성 보존 | 단어 끝부분 더 보존 |
+| `--padding` | 0.10초 | 휴지 **끝난 후** 건너뜀 | 더 많이 잘림 |
+
+**음성이 잘리는 경우:**
+- 단어 끝이 잘림 → `--tail-buffer` 증가 (예: 0.25)
+- 단어 시작이 잘림 → `--padding` 감소 (예: 0.05)
 
 ## Troubleshooting
 
@@ -448,6 +528,29 @@ For multiple videos, process one completely first to verify settings, then batch
 - **Storage**: ~500 KB per 25-minute video (transcript JSON)
 
 **Total cost per video**: Primarily OpenAI API fees (~$0.006/minute)
+
+## Integration with video-add-chapters
+
+This skill can be combined with `video-add-chapters` for a complete video processing workflow. Use the `video-full-process` skill for an automated pipeline:
+
+```bash
+# Full processing with transcript reuse
+python process_video.py "video.mp4" --language ko
+```
+
+The `--output-pauses` flag exports pause data in JSON format for chapter timestamp remapping:
+
+```json
+{
+  "pauses": [
+    {"start": 45.2, "end": 48.5, "duration": 3.3},
+    {"start": 120.1, "end": 125.8, "duration": 5.7}
+  ],
+  "total_pause_time": 87.5
+}
+```
+
+This data enables accurate chapter remapping after pauses are removed.
 
 ## Support & Updates
 
