@@ -13,334 +13,81 @@ license: MIT
 
 Extract transcripts from YouTube videos and generate AI-powered summaries. Supports any source language and can output summaries in your preferred language.
 
-## When to Use This Skill
-
-Use this skill when you need to:
-- Convert YouTube videos into readable markdown documents
-- Get AI-generated summaries of video content
-- Extract key points and insights from educational videos
-- Create study notes from online lectures or presentations
-- Process videos in any language and get summaries in your preferred language
-- Batch process multiple YouTube videos at once
-
-**Perfect for**: Learning from video content, research, meeting recordings, lecture notes, or any YouTube video you want to understand quickly.
-
-## Example Results
-
-A 20-minute video becomes a structured document with:
-- 2-3 sentence summary
-- Bullet-point key takeaways
-- Sectioned content breakdown
-- 5-minute interval timeline
-- Full transcript with timestamps
-
 ## Requirements
 
-### Python Requirements
 ```bash
-pip install youtube-transcript-api anthropic
+pip install -r requirements.txt
+# or: pip install youtube-transcript-api anthropic
 ```
 
-### Environment Variables
-- **ANTHROPIC_API_KEY**: Required for AI summarization
-  - Get your API key from [console.anthropic.com](https://console.anthropic.com/)
-  - Cost: ~$0.01-0.05 per video (depending on length)
+- **ANTHROPIC_API_KEY** env var required for AI summarization
+- **yt-dlp** (optional) for automatic video title fetching
+- Python 3.7+
 
-### Python Version
-- Python 3.7 or higher
+Cost depends on transcript length and current Claude API pricing.
 
-## How It Works
-
-This skill follows a simple two-step process:
-
-### Step 1: Transcript Extraction
-1. Extracts video ID from YouTube URL
-2. Fetches transcript using YouTube Transcript API
-3. Supports multiple languages with automatic fallback
-
-### Step 2: AI Summarization
-1. Sends transcript to Claude API
-2. Generates structured summary in target language
-3. Creates timeline with key moments
-4. Outputs formatted markdown document
-
-## Usage Guide
-
-### Basic Workflow
+## Usage
 
 ```bash
-# Single video (default: English source, Korean summary)
+# Single video (default: English -> Korean)
 python youtube_transcript_summarizer.py "https://www.youtube.com/watch?v=VIDEO_ID"
 
-# With custom title
-python youtube_transcript_summarizer.py "https://www.youtube.com/watch?v=VIDEO_ID" --title "My Video Title"
+# Transcript only (no AI summary)
+python youtube_transcript_summarizer.py "VIDEO_URL" --no-summary
 
-# Custom output directory
-python youtube_transcript_summarizer.py "https://www.youtube.com/watch?v=VIDEO_ID" --output-dir "summaries"
-```
-
-### Multi-Language Support
-
-```bash
-# Japanese video, English summary
+# Japanese video with English summary
 python youtube_transcript_summarizer.py "VIDEO_URL" --source-lang ja --target-lang en
 
-# Spanish video, Spanish summary
-python youtube_transcript_summarizer.py "VIDEO_URL" --source-lang es --target-lang es
-
-# Korean video, Korean summary
-python youtube_transcript_summarizer.py "VIDEO_URL" --source-lang ko --target-lang ko
-
-# Auto-detect source language, output in French
+# Auto-detect source language
 python youtube_transcript_summarizer.py "VIDEO_URL" --source-lang auto --target-lang fr
+
+# Batch processing
+python youtube_transcript_summarizer.py --batch "urls.txt" --output-dir "summaries"
+
+# Custom model and transcript limit
+python youtube_transcript_summarizer.py "VIDEO_URL" --model claude-sonnet-4-5-20250929 --max-transcript-chars 30000
 ```
 
-### Supported Languages
-
-| Code | Language |
-|------|----------|
-| `en` | English |
-| `ko` | Korean |
-| `ja` | Japanese |
-| `zh` | Chinese |
-| `es` | Spanish |
-| `fr` | French |
-| `de` | German |
-| `pt` | Portuguese |
-| `ru` | Russian |
-| `ar` | Arabic |
-| `hi` | Hindi |
-| `auto` | Auto-detect |
-
-### Batch Processing
-
-Process multiple videos from a file:
-
-```bash
-# Create a URLs file (one URL per line)
-# videos.txt:
-# https://www.youtube.com/watch?v=VIDEO_ID_1
-# https://www.youtube.com/watch?v=VIDEO_ID_2
-# # This is a comment (ignored)
-
-# Process all videos
-python youtube_transcript_summarizer.py --batch "videos.txt" --output-dir "summaries"
-```
-
-### Command Line Options
+## CLI Options
 
 | Option | Description | Default |
 |--------|-------------|---------|
-| `--title` | Custom title for the video | Auto-generated from video ID |
+| `--title` | Custom video title | Auto-fetched via yt-dlp |
 | `--source-lang` | Source transcript language | `en` |
 | `--target-lang` | Output summary language | `ko` |
 | `--output-dir` | Output directory | `outputs/summaries` |
-| `--batch` | File containing URLs to process | - |
-| `--timeline-interval` | Timeline interval in minutes | `5` |
-| `--no-summary` | Skip AI summary (transcript only) | `false` |
-| `--api-key` | Claude API key (or use env var) | - |
+| `--batch FILE` | Process multiple URLs from file | - |
+| `--timeline-interval` | Timeline interval (minutes) | `5` |
+| `--no-summary` | Skip AI summary | `false` |
+| `--api-key` | Claude API key | `ANTHROPIC_API_KEY` env |
+| `--model` | Claude model name | `claude-sonnet-4-5-20250929` |
+| `--max-transcript-chars` | Max chars sent to Claude | `15000` |
+
+## Supported Languages
+
+`en`, `ko`, `ja`, `zh`, `es`, `fr`, `de`, `pt`, `ru`, `ar`, `hi`, `auto`
 
 ## Output Format
 
-Generated markdown files include:
+Files are named `YYYY-MM-DD VideoTitle.md` with YAML frontmatter:
 
-```markdown
-# Video Title
-
-**Original Video**: [URL](URL)
-**Generated**: YYYY-MM-DD
-**Video ID**: VIDEO_ID
-**Language**: Source -> Target
-
+```yaml
 ---
-
-## Summary
-
-AI-generated 2-3 sentence overview of the video content.
-
+title: "Video Title"
+source: "https://www.youtube.com/watch?v=ID"
+created: YYYY-MM-DD HH:MM:SS
+tags:
+  - youtube-transcript
+video_id: "ID"
+source_lang: "en"
+target_lang: "ko"
 ---
-
-## Key Points
-
-- Key insight 1
-- Key insight 2
-- Key insight 3
-...
-
----
-
-## Main Content
-
-### Section 1: [Topic]
-- Detailed point
-- Supporting information
-
-### Section 2: [Topic]
-...
-
----
-
-## Timeline
-
-- **00:00**: Opening remarks...
-- **05:00**: Introduction to main topic...
-- **10:00**: Deep dive into details...
-...
-
----
-
-## Full Transcript
-
-**[00:00]** First words of the video...
-
-**[00:15]** Continuing the speech...
-...
-
----
-
-*Generated by YouTube Transcript Summarizer*
 ```
 
-## Claude Code Integration
+Sections: Summary, Key Points, Main Content, Timeline, Full Transcript.
 
-When using Claude Code, simply ask:
+## Claude Code Integration
 
 ```
 Summarize this YouTube video: https://www.youtube.com/watch?v=VIDEO_ID
 ```
-
-Or for batch processing:
-
-```
-Summarize all videos in videos.txt and save them to the summaries folder
-```
-
-Or with language options:
-
-```
-Summarize this Japanese YouTube video in English: https://www.youtube.com/watch?v=VIDEO_ID
-```
-
-## Troubleshooting
-
-### "Transcript not available" Error
-
-**Causes**:
-- Video has no captions/subtitles
-- Video is private or deleted
-- Geographic restrictions
-
-**Solutions**:
-1. Check if CC button is available on YouTube
-2. Try different language codes: `--source-lang auto`
-3. Some videos have auto-generated captions that may work
-
-### "API key not found" Error
-
-**Solution**: Set your Anthropic API key:
-```bash
-# Windows (PowerShell)
-$env:ANTHROPIC_API_KEY = "your-api-key"
-
-# macOS/Linux
-export ANTHROPIC_API_KEY="your-api-key"
-```
-
-### Unicode/Encoding Errors on Windows
-
-The script includes automatic UTF-8 handling. If issues persist:
-```bash
-# PowerShell
-chcp 65001
-```
-
-### Incomplete Summary
-
-For very long videos (>1 hour), the script uses the first 15,000 characters for summarization. Use `--no-summary` to get the full transcript without AI processing.
-
-## Cost Estimation
-
-| Video Length | Estimated Cost |
-|--------------|----------------|
-| 10 minutes | ~$0.01 |
-| 30 minutes | ~$0.02 |
-| 60 minutes | ~$0.03 |
-
-Costs depend on transcript length and Claude API pricing.
-
-## Quality Checklist
-
-Before marking complete:
-
-- [ ] YouTube URL is valid and accessible
-- [ ] Transcript extracted successfully
-- [ ] API key configured (if using AI summary)
-- [ ] Output markdown is well-formatted
-- [ ] Summary accurately reflects video content
-- [ ] Timeline timestamps are correct
-
-## Advanced Usage
-
-### Transcript Only (No AI)
-
-```bash
-python youtube_transcript_summarizer.py "VIDEO_URL" --no-summary
-```
-
-### Custom Timeline Intervals
-
-```bash
-# 10-minute intervals
-python youtube_transcript_summarizer.py "VIDEO_URL" --timeline-interval 10
-
-# 2-minute intervals for short videos
-python youtube_transcript_summarizer.py "VIDEO_URL" --timeline-interval 2
-```
-
-### Programmatic Usage
-
-```python
-from youtube_transcript_summarizer import YouTubeTranscriptSummarizer
-
-summarizer = YouTubeTranscriptSummarizer(
-    source_lang='en',
-    target_lang='ko',
-    api_key='your-api-key'
-)
-
-result = summarizer.process("https://www.youtube.com/watch?v=VIDEO_ID")
-print(result['summary'])
-```
-
-## File Naming Convention
-
-Output files follow this pattern:
-```
-YYYYMMDD_[SafeTitle]_[VideoID].md
-```
-
-Example:
-```
-20260128_How-AI-Works_dQw4w9WgXcQ.md
-```
-
-## Skill Location
-
-```
-youtube-transcript-summarizer/
-├── SKILL.md                           # This documentation
-└── youtube_transcript_summarizer.py   # Main script
-```
-
-## Version History
-
-- **v1.0** (2026-01): Initial release
-  - Multi-language support (source and target)
-  - Batch processing
-  - AI-powered summarization with Claude
-  - Configurable timeline intervals
-  - UTF-8 support for all platforms
-
----
-
-**Ready to summarize?** Start with a single video URL and adjust settings as needed. For best results, ensure the video has captions available.

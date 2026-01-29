@@ -12,9 +12,6 @@ Usage:
 
 Requirements:
     pip install youtube-transcript-api anthropic
-
-Environment:
-    ANTHROPIC_API_KEY: Your Claude API key for summarization
 """
 
 import sys
@@ -22,13 +19,18 @@ import io
 import os
 import re
 import argparse
+import subprocess
 from datetime import datetime
 from typing import Optional, Dict, List, Any
 
+
 # Windows console UTF-8 encoding
 if sys.platform == 'win32':
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
-    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
+    try:
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+        sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
+    except Exception:
+        pass
 
 
 # Language configurations
@@ -47,6 +49,9 @@ LANGUAGE_NAMES = {
     'auto': 'Auto-detect'
 }
 
+DEFAULT_MODEL = "claude-sonnet-4-5-20250929"
+DEFAULT_MAX_TRANSCRIPT_CHARS = 15000
+
 
 class YouTubeTranscriptSummarizer:
     """YouTube video transcript extraction and summarization."""
@@ -56,21 +61,16 @@ class YouTubeTranscriptSummarizer:
         source_lang: str = 'en',
         target_lang: str = 'ko',
         api_key: Optional[str] = None,
-        timeline_interval: int = 5
+        timeline_interval: int = 5,
+        model: str = DEFAULT_MODEL,
+        max_transcript_chars: int = DEFAULT_MAX_TRANSCRIPT_CHARS,
     ):
-        """
-        Initialize the summarizer.
-
-        Args:
-            source_lang: Source transcript language code
-            target_lang: Target summary language code
-            api_key: Claude API key (or uses ANTHROPIC_API_KEY env var)
-            timeline_interval: Timeline interval in minutes
-        """
         self.source_lang = source_lang
         self.target_lang = target_lang
         self.api_key = api_key or os.getenv('ANTHROPIC_API_KEY')
         self.timeline_interval = timeline_interval
+        self.model = model
+        self.max_transcript_chars = max_transcript_chars
 
     def extract_video_id(self, url: str) -> str:
         """Extract video ID from various YouTube URL formats."""
@@ -91,29 +91,30 @@ class YouTubeTranscriptSummarizer:
         if re.match(r'^[a-zA-Z0-9_-]{11}$', url):
             return url
 
-        return url
+        raise ValueError(f"Could not extract video ID from: {url}")
+
+    def fetch_video_title(self, video_id: str) -> Optional[str]:
+        """Fetch actual video title from YouTube using yt-dlp."""
+        try:
+            result = subprocess.run(
+                ['yt-dlp', '--print', 'title', '--no-download', f'https://www.youtube.com/watch?v={video_id}'],
+                capture_output=True, text=True, timeout=15
+            )
+            if result.returncode == 0 and result.stdout.strip():
+                return result.stdout.strip()
+        except (FileNotFoundError, subprocess.TimeoutExpired, Exception):
+            pass
+        return None
 
     def get_transcript(self, video_id: str) -> Optional[List[Dict]]:
-        """
-        Fetch transcript from YouTube.
-
-        Args:
-            video_id: YouTube video ID
-
-        Returns:
-            List of transcript segments with 'text' and 'start' keys
-        """
+        """Fetch transcript from YouTube."""
         try:
             from youtube_transcript_api import YouTubeTranscriptApi
 
             api = YouTubeTranscriptApi()
             transcript_list = api.list(video_id)
 
-            # Determine which language to fetch
-            languages_to_try = []
-
             if self.source_lang == 'auto':
-                # Try to get any available transcript
                 try:
                     transcript = next(iter(transcript_list))
                     print(f"[*] Auto-detected language: {transcript.language}")
@@ -122,13 +123,12 @@ class YouTubeTranscriptSummarizer:
                     return None
             else:
                 languages_to_try = [self.source_lang]
-                # Add common fallbacks
                 if self.source_lang != 'en':
                     languages_to_try.append('en')
 
                 try:
                     transcript = transcript_list.find_transcript(languages_to_try)
-                except:
+                except Exception:
                     print(f"[!] Language '{self.source_lang}' not found. Using first available.")
                     try:
                         transcript = next(iter(transcript_list))
@@ -192,16 +192,7 @@ class YouTubeTranscriptSummarizer:
         return "\n".join(timeline)
 
     def summarize_with_claude(self, transcript_text: str, video_title: str = "") -> Dict[str, Any]:
-        """
-        Generate AI summary using Claude API.
-
-        Args:
-            transcript_text: Full transcript text
-            video_title: Video title for context
-
-        Returns:
-            Dictionary with 'summary', 'key_points', and 'sections'
-        """
+        """Generate AI summary using Claude API."""
         if not self.api_key:
             print("\n[!] Claude API key not found. Skipping AI summary.")
             return {
@@ -215,14 +206,18 @@ class YouTubeTranscriptSummarizer:
 
             client = Anthropic(api_key=self.api_key)
 
-            # Get target language name
             target_lang_name = LANGUAGE_NAMES.get(self.target_lang, self.target_lang)
 
-            # Build prompt
+            # Truncate transcript if needed
+            text_to_send = transcript_text
+            if len(transcript_text) > self.max_transcript_chars:
+                print(f"[!] Transcript truncated from {len(transcript_text)} to {self.max_transcript_chars} chars")
+                text_to_send = transcript_text[:self.max_transcript_chars]
+
             prompt = f"""You are analyzing a YouTube video transcript. The video is titled: "{video_title}"
 
 Here is the transcript:
-{transcript_text[:15000]}
+{text_to_send}
 
 Please provide a comprehensive analysis in {target_lang_name} with the following structure:
 
@@ -250,14 +245,13 @@ Please provide a comprehensive analysis in {target_lang_name} with the following
 IMPORTANT: Write everything in {target_lang_name}. Be thorough but concise."""
 
             response = client.messages.create(
-                model="claude-sonnet-4-5-20250929",
+                model=self.model,
                 max_tokens=4000,
                 messages=[{"role": "user", "content": prompt}]
             )
 
             result_text = response.content[0].text
 
-            # Parse response
             summary_match = re.search(r'## Summary\n(.+?)(?=\n## |\Z)', result_text, re.DOTALL)
             key_points_match = re.search(r'## Key Points\n(.+?)(?=\n## |\Z)', result_text, re.DOTALL)
             sections_match = re.search(r'## Main Content\n(.+)', result_text, re.DOTALL)
@@ -303,19 +297,7 @@ IMPORTANT: Write everything in {target_lang_name}. Be thorough but concise."""
         transcript: List[Dict],
         include_summary: bool = True
     ) -> str:
-        """
-        Generate structured markdown document.
-
-        Args:
-            video_id: YouTube video ID
-            video_url: Full YouTube URL
-            video_title: Video title
-            transcript: Transcript data
-            include_summary: Whether to include AI summary
-
-        Returns:
-            Formatted markdown string
-        """
+        """Generate structured markdown document with YAML frontmatter."""
         # Build full transcript text
         full_text = " ".join([
             entry.text.strip() if hasattr(entry, 'text') else entry.get('text', '').strip()
@@ -336,25 +318,28 @@ IMPORTANT: Write everything in {target_lang_name}. Be thorough but concise."""
         # Generate timeline
         timeline = self.create_timeline(transcript)
 
-        # Build markdown
-        today = datetime.now().strftime("%Y-%m-%d")
+        # Build YAML frontmatter
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         source_lang_name = LANGUAGE_NAMES.get(self.source_lang, self.source_lang)
         target_lang_name = LANGUAGE_NAMES.get(self.target_lang, self.target_lang)
 
-        markdown = f"""# {video_title}
+        # Escape title for YAML
+        yaml_title = video_title.replace('"', '\\"')
 
-**Original Video**: [{video_url}]({video_url})
-**Generated**: {today}
-**Video ID**: {video_id}
-**Language**: {source_lang_name} -> {target_lang_name}
-
+        markdown = f"""---
+title: "{yaml_title}"
+source: "{video_url}"
+created: {now}
+tags:
+  - youtube-transcript
+video_id: "{video_id}"
+source_lang: "{self.source_lang}"
+target_lang: "{self.target_lang}"
 ---
 
 ## Summary
 
 {analysis['summary']}
-
----
 
 ## Key Points
 
@@ -365,21 +350,15 @@ IMPORTANT: Write everything in {target_lang_name}. Be thorough but concise."""
 
         if analysis['sections']:
             markdown += f"""
----
-
 ## Main Content
 
 {analysis['sections']}
 """
 
         markdown += f"""
----
-
 ## Timeline
 
 {timeline}
-
----
 
 ## Full Transcript
 
@@ -392,12 +371,6 @@ IMPORTANT: Write everything in {target_lang_name}. Be thorough but concise."""
             timestamp = self.format_timestamp(entry_start)
             markdown += f"**[{timestamp}]** {entry_text.strip()}\n\n"
 
-        markdown += """
----
-
-*Generated by YouTube Transcript Summarizer*
-"""
-
         return markdown
 
     def process(
@@ -407,21 +380,22 @@ IMPORTANT: Write everything in {target_lang_name}. Be thorough but concise."""
         output_dir: str = "outputs/summaries",
         include_summary: bool = True
     ) -> Optional[Dict[str, str]]:
-        """
-        Process a single YouTube video.
-
-        Args:
-            url: YouTube URL
-            title: Custom title (optional)
-            output_dir: Output directory
-            include_summary: Whether to include AI summary
-
-        Returns:
-            Dictionary with 'filepath' and 'content' or None on failure
-        """
+        """Process a single YouTube video."""
         video_id = self.extract_video_id(url)
         video_url = f"https://www.youtube.com/watch?v={video_id}"
-        video_title = title or f"YouTube Video {video_id}"
+
+        # Fetch actual title if not provided
+        if title:
+            video_title = title
+        else:
+            print("\n[*] Fetching video title...")
+            fetched_title = self.fetch_video_title(video_id)
+            if fetched_title:
+                video_title = fetched_title
+                print(f"[OK] Title: {video_title}")
+            else:
+                video_title = f"YouTube Video {video_id}"
+                print(f"[!] Could not fetch title, using: {video_title}")
 
         print(f"\n{'=' * 60}")
         print(f"Processing: {video_title}")
@@ -452,10 +426,10 @@ IMPORTANT: Write everything in {target_lang_name}. Be thorough but concise."""
         # Save file
         os.makedirs(output_dir, exist_ok=True)
 
-        # Create safe filename
+        # Create safe filename: YYYY-MM-DD SafeTitle.md
         safe_title = re.sub(r'[^\w\s-]', '', video_title).strip()
-        safe_title = re.sub(r'[-\s]+', '-', safe_title)[:50]
-        filename = f"{datetime.now().strftime('%Y%m%d')}_{safe_title}_{video_id}.md"
+        safe_title = re.sub(r'[-\s]+', ' ', safe_title)[:80]
+        filename = f"{datetime.now().strftime('%Y-%m-%d')} {safe_title}.md"
         filepath = os.path.join(output_dir, filename)
 
         with open(filepath, 'w', encoding='utf-8') as f:
@@ -476,17 +450,7 @@ IMPORTANT: Write everything in {target_lang_name}. Be thorough but concise."""
         output_dir: str = "outputs/summaries",
         include_summary: bool = True
     ) -> Dict[str, Any]:
-        """
-        Process multiple URLs from a file.
-
-        Args:
-            urls_file: Path to file containing URLs (one per line)
-            output_dir: Output directory
-            include_summary: Whether to include AI summaries
-
-        Returns:
-            Summary of processing results
-        """
+        """Process multiple URLs from a file."""
         results = {
             'total': 0,
             'success': 0,
@@ -495,14 +459,12 @@ IMPORTANT: Write everything in {target_lang_name}. Be thorough but concise."""
             'errors': []
         }
 
-        # Read URLs
         with open(urls_file, 'r', encoding='utf-8') as f:
             lines = f.readlines()
 
         urls = []
         for line in lines:
             line = line.strip()
-            # Skip empty lines and comments
             if not line or line.startswith('#'):
                 continue
             urls.append(line)
@@ -534,7 +496,6 @@ IMPORTANT: Write everything in {target_lang_name}. Be thorough but concise."""
                 results['errors'].append({'url': url, 'error': str(e)})
                 print(f"[X] Error: {e}")
 
-        # Print summary
         print(f"\n{'=' * 60}")
         print("Batch Processing Complete")
         print(f"{'=' * 60}")
@@ -573,68 +534,39 @@ Examples:
 
   # Transcript only (no AI summary)
   python youtube_transcript_summarizer.py "VIDEO_URL" --no-summary
+
+  # Custom model
+  python youtube_transcript_summarizer.py "VIDEO_URL" --model claude-sonnet-4-5-20250929
 """
     )
 
-    parser.add_argument(
-        'url',
-        nargs='?',
-        help='YouTube URL or video ID'
-    )
-    parser.add_argument(
-        '--batch',
-        metavar='FILE',
-        help='Process multiple URLs from a file'
-    )
-    parser.add_argument(
-        '--title',
-        help='Custom title for the video'
-    )
-    parser.add_argument(
-        '--source-lang',
-        default='en',
-        help='Source transcript language (default: en)'
-    )
-    parser.add_argument(
-        '--target-lang',
-        default='ko',
-        help='Target summary language (default: ko)'
-    )
-    parser.add_argument(
-        '--output-dir',
-        default='outputs/summaries',
-        help='Output directory (default: outputs/summaries)'
-    )
-    parser.add_argument(
-        '--timeline-interval',
-        type=int,
-        default=5,
-        help='Timeline interval in minutes (default: 5)'
-    )
-    parser.add_argument(
-        '--no-summary',
-        action='store_true',
-        help='Skip AI summary (transcript only)'
-    )
-    parser.add_argument(
-        '--api-key',
-        help='Claude API key (or set ANTHROPIC_API_KEY env var)'
-    )
+    parser.add_argument('url', nargs='?', help='YouTube URL or video ID')
+    parser.add_argument('--batch', metavar='FILE', help='Process multiple URLs from a file')
+    parser.add_argument('--title', help='Custom title for the video')
+    parser.add_argument('--source-lang', default='en', help='Source transcript language (default: en)')
+    parser.add_argument('--target-lang', default='ko', help='Target summary language (default: ko)')
+    parser.add_argument('--output-dir', default='outputs/summaries', help='Output directory (default: outputs/summaries)')
+    parser.add_argument('--timeline-interval', type=int, default=5, help='Timeline interval in minutes (default: 5)')
+    parser.add_argument('--no-summary', action='store_true', help='Skip AI summary (transcript only)')
+    parser.add_argument('--api-key', help='Claude API key (or set ANTHROPIC_API_KEY env var)')
+    parser.add_argument('--model', default=DEFAULT_MODEL, help=f'Claude model to use (default: {DEFAULT_MODEL})')
+    parser.add_argument('--max-transcript-chars', type=int, default=DEFAULT_MAX_TRANSCRIPT_CHARS,
+                        help=f'Max transcript chars for summarization (default: {DEFAULT_MAX_TRANSCRIPT_CHARS})')
 
     args = parser.parse_args()
 
-    # Validate arguments
     if not args.url and not args.batch:
         parser.print_help()
         print("\n[X] Error: Please provide a YouTube URL or use --batch option")
         sys.exit(1)
 
-    # Initialize summarizer
     summarizer = YouTubeTranscriptSummarizer(
         source_lang=args.source_lang,
         target_lang=args.target_lang,
         api_key=args.api_key,
-        timeline_interval=args.timeline_interval
+        timeline_interval=args.timeline_interval,
+        model=args.model,
+        max_transcript_chars=args.max_transcript_chars,
     )
 
     print("=" * 60)
@@ -643,8 +575,8 @@ Examples:
     print(f"Source Language: {LANGUAGE_NAMES.get(args.source_lang, args.source_lang)}")
     print(f"Target Language: {LANGUAGE_NAMES.get(args.target_lang, args.target_lang)}")
     print(f"AI Summary: {'No' if args.no_summary else 'Yes'}")
+    print(f"Model: {args.model}")
 
-    # Process
     if args.batch:
         summarizer.process_batch(
             urls_file=args.batch,
