@@ -15,6 +15,7 @@ Claude Obsidian Skills is a collection of AI agent skills designed to automate p
 | Skill | Description |
 |-------|-------------|
 | [ai4pkm-helper](ai4pkm-helper/) | AI4PKM helper for onboarding guidance, quick help, and seamless handoff to DDA for daily use |
+| [gobi-onboarding](gobi-onboarding/) | Gobi Desktop 3.0 voice-based onboarding guide with 4-step flow |
 
 ### Obsidian Skills
 
