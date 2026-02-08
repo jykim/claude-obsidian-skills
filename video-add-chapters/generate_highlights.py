@@ -125,7 +125,7 @@ def generate_highlight_video(video_path: Path, segments: list, output_path: Path
             video_filter += (
                 f",drawtext=text='{escaped_title}':"
                 f"fontfile=/System/Library/Fonts/AppleSDGothicNeo.ttc:"
-                f"fontsize=144:"
+                f"fontsize=108:"
                 f"fontcolor=yellow:"
                 f"borderw=4:"
                 f"bordercolor=black:"
