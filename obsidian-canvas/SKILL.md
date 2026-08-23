@@ -28,6 +28,44 @@ Activate when you need to:
 
 Canvas의 핵심은 노드 배치와 연결. 수동으로 좌표 계산하는 대신, 패턴별 자동 레이아웃 사용.
 
+## Edit Workflow: Draft & Atomic Replace (CRITICAL)
+
+> **캔버스 파일을 직접 여러 번 덮어쓰지 마라.**
+
+Obsidian이 캔버스 탭을 열어둔 상태에서 외부에서 `.canvas` 파일을 수정하면, Obsidian이 자기 메모리의 (종종 minimal한) 상태로 디스크를 다시 덮어써 작업 결과가 사라질 수 있다.
+
+### 권장 워크플로우
+
+1. **임시 파일에서 편집 완료**: `<원본>.canvas.draft`에 모든 노드·엣지·컨테이너를 한 번에 작성
+2. **검증**: JSON 유효성, 노드 좌표 오버랩, 엣지 ID 매칭 확인
+3. **Atomic Replace**: `mv draft → 원본` 한 번의 파일 시스템 이벤트로 교체
+4. **결과 확인**: `wc -l`로 파일 크기 검증 (minimal 상태 = 빈 캔버스 의심)
+
+### 피해야 할 패턴
+
+- 같은 `.canvas` 파일에 연속적으로 Write 호출 (race condition)
+- Edit으로 부분 수정 후 Obsidian sync 전 다음 Edit
+- 작성 직후 바로 `obsidian://open` 호출 (작성 중 sync 충돌 가능)
+- 사용자에게 "Obsidian 새로고침" 반복 요청
+
+### Atomic Replace 예시
+
+```bash
+# 1. 임시 파일에 완전한 캔버스 작성
+Write file: AI/Canvas/foo.canvas.draft (전체 내용)
+
+# 2. 한 번에 교체
+mv "AI/Canvas/foo.canvas.draft" "AI/Canvas/foo.canvas"
+
+# 3. 결과 검증
+wc -l "AI/Canvas/foo.canvas"  # 정상 = 노드 수에 비례한 줄 수
+                              # 비정상 = 6-9줄 (minimal 상태)
+```
+
+### 작은 수정도 전체 재작성
+
+부분 수정이 필요해도 **전체 캔버스 JSON을 임시 파일에 다시 쓰고 atomic replace**. Edit 도구로 한 노드만 수정하는 패턴은 sync 충돌을 일으킬 수 있다.
+
 ## Canvas File Structure
 
 ```json

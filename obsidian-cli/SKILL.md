@@ -147,7 +147,7 @@ obsidian create name="New Note"
 obsidian create name="Daily Note" content="Today's note"
 
 # With template
-obsidian create name="Meeting" template="Meeting Template" --open
+obsidian create name="Meeting" template="Meeting Template" --open --newtab
 
 # With exact path
 obsidian create path="Journal/2026-02-28.md" content="..." --overwrite
@@ -1327,6 +1327,13 @@ obsidian eval code='app.vault.getMarkdownFiles().length'
 
 # Get custom object
 obsidian eval code='app.workspace.activeEditor?.file?.name'
+```
+
+### Opening Files After Creation/Modification
+Always open newly created or modified files in a **new tab** to avoid replacing the user's current view:
+```bash
+obsidian open file="New Note" --newtab
+obsidian create name="Meeting" template="Meeting Template" --open --newtab
 ```
 
 ## Common Patterns for GOBI Vault
