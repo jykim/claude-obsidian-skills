@@ -111,7 +111,7 @@ Some skills require external dependencies. Install them before using:
 
 | Skill | Requirements |
 |-------|--------------|
-| markdown-video | FFmpeg, OpenAI API key, Python 3.7+, Pillow |
+| markdown-video | FFmpeg, OpenAI API key (default) or Atlas Cloud API key, Python 3.7+, Pillow |
 | video-cleaning | FFmpeg, OpenAI API key, Python 3.7+ |
 | gemini-image-skill | Gemini API key, Python 3.7+, google-genai, Pillow |
 | markdown-slides | None (markdown only) |
@@ -125,10 +125,11 @@ Some skills require external dependencies. Install them before using:
 brew install ffmpeg
 
 # Python dependencies
-pip install Pillow openai google-genai
+pip install Pillow openai requests google-genai
 
 # Set API keys
 export OPENAI_API_KEY="sk-..."
+export ATLASCLOUD_API_KEY="your-api-key"  # optional markdown-video TTS provider
 export GEMINI_API_KEY="your-gemini-api-key"
 ```
 

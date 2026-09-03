@@ -24,7 +24,7 @@ Activate this skill when the user:
 ## Key Features
 
 - **Gemini AI-generated visuals**: High-quality slide images with full emoji and Korean support
-- **OpenAI TTS narration**: Natural voice from speaker notes
+- **TTS narration**: OpenAI by default, or Atlas Cloud as an optional provider
 - **Delta updates**: Only regenerates changed slides (saves time and API costs)
 - **Multiple visual styles**: technical-diagram, professional, vibrant-cartoon, watercolor
 
@@ -32,7 +32,7 @@ Activate this skill when the user:
 
 - **Markdown file** with speaker notes marked with `^` prefix
 - **GEMINI_API_KEY** environment variable for image generation
-- **OPENAI_API_KEY** environment variable for TTS audio
+- **OPENAI_API_KEY** environment variable for default TTS audio, or **ATLASCLOUD_API_KEY** for Atlas Cloud
 
 ## Output Specifications
 
@@ -50,6 +50,18 @@ Activate this skill when the user:
 cd "{slides_directory}"
 python /Users/lifidea/.claude/skills/markdown-video/generate_audio.py "{slides_filename}" --output-dir "audio"
 ```
+
+To use Atlas Cloud without changing the default OpenAI workflow:
+
+```bash
+python {baseDir}/generate_audio.py "{slides_filename}" \
+  --provider atlascloud --output-dir "audio"
+```
+
+The Atlas route resolves its current model schema before generation, submits
+each slide once, and polls the prediction endpoint with a bounded timeout.
+Override the defaults with `--atlas-model`, `--atlas-speaker`, and
+`--atlas-timeout`.
 
 **Delta update**: Only regenerates audio for slides with changed speaker notes.
 - Use `--force` to regenerate all audio files
@@ -193,6 +205,7 @@ pip install Pillow requests google-genai
 ### Environment Variables
 ```bash
 export OPENAI_API_KEY="sk-..."
+export ATLASCLOUD_API_KEY="your-api-key"  # optional Atlas Cloud provider
 export GEMINI_API_KEY="..."
 ```
 

@@ -3,6 +3,7 @@
 
 # TTS audio generation
 openai>=1.0.0
+requests>=2.31.0
 
 # Image generation with Gemini
 google-genai>=1.0.0

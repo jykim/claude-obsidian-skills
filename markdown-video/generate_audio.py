@@ -40,6 +40,8 @@ from pathlib import Path
 from typing import List, Dict, Optional
 import requests
 
+from atlas_tts import AtlasTTSClient, DEFAULT_ATLAS_MODEL, DEFAULT_ATLAS_SPEAKER
+
 
 def compute_hash(text: str) -> str:
     """Compute MD5 hash of text for change detection"""
@@ -240,6 +242,32 @@ def main():
     )
 
     parser.add_argument(
+        '--provider',
+        choices=['openai', 'atlascloud'],
+        default='openai',
+        help='TTS provider (default: openai)'
+    )
+
+    parser.add_argument(
+        '--atlas-model',
+        default=DEFAULT_ATLAS_MODEL,
+        help=f'Atlas Cloud audio model (default: {DEFAULT_ATLAS_MODEL})'
+    )
+
+    parser.add_argument(
+        '--atlas-speaker',
+        default=DEFAULT_ATLAS_SPEAKER,
+        help=f'Atlas Cloud speaker or voice id (default: {DEFAULT_ATLAS_SPEAKER})'
+    )
+
+    parser.add_argument(
+        '--atlas-timeout',
+        type=int,
+        default=300,
+        help='Atlas Cloud prediction timeout in seconds (default: 300)'
+    )
+
+    parser.add_argument(
         '--instructions',
         type=str,
         default=None,
@@ -267,17 +295,40 @@ def main():
 
     args = parser.parse_args()
 
+    if args.provider == 'atlascloud' and args.instructions:
+        parser.error('--instructions is only supported by the OpenAI provider')
+
     # Validate input file
     if not args.markdown_file.exists():
         print(f"❌ Error: Markdown file not found: {args.markdown_file}")
         sys.exit(1)
 
+    atlas_client = None
+    if args.provider == 'atlascloud' and not args.dry_run:
+        atlas_api_key = (os.environ.get('ATLASCLOUD_API_KEY') or '').strip()
+        if not atlas_api_key:
+            parser.error('ATLASCLOUD_API_KEY is required for --provider atlascloud')
+        try:
+            atlas_client = AtlasTTSClient(
+                api_key=atlas_api_key,
+                model=args.atlas_model,
+                speaker=args.atlas_speaker,
+                timeout=args.atlas_timeout,
+            )
+        except RuntimeError as exc:
+            parser.error(str(exc))
+
     print("🎤 Generate Audio from Markdown")
     print("=" * 60)
     print(f"Input file:  {args.markdown_file}")
     print(f"Output dir:  {args.output_dir}")
-    print(f"Voice:       {args.voice}")
-    print(f"Model:       {args.model}")
+    print(f"Provider:    {args.provider}")
+    if args.provider == 'atlascloud':
+        print(f"Atlas model: {args.atlas_model}")
+        print(f"Speaker:     {args.atlas_speaker}")
+    else:
+        print(f"Voice:       {args.voice}")
+        print(f"Model:       {args.model}")
     if args.instructions:
         print(f"Instructions: {args.instructions[:60]}{'...' if len(args.instructions) > 60 else ''}")
     print()
@@ -339,8 +390,22 @@ def main():
         output_file = args.output_dir / f"{slide_key}.mp3"
 
         # Check if regeneration needed
-        cached_hash = cache.get(slide_key, {}).get('hash')
-        if cached_hash == content_hash and output_file.exists():
+        cached = cache.get(slide_key, {})
+        cached_provider = cached.get('provider', 'openai')
+        provider_matches = cached_provider == args.provider
+        if args.provider == 'atlascloud':
+            provider_matches = (
+                provider_matches
+                and cached.get('model') == args.atlas_model
+                and cached.get('speaker') == args.atlas_speaker
+            )
+        else:
+            provider_matches = (
+                provider_matches
+                and cached.get('model') == args.model
+                and cached.get('voice') == args.voice
+            )
+        if cached.get('hash') == content_hash and provider_matches and output_file.exists():
             slides_unchanged.append(slide)
         else:
             slide['content_hash'] = content_hash
@@ -367,22 +432,35 @@ def main():
     for slide in slides_to_generate:
         output_file = args.output_dir / f"slide_{slide['slide_num']}.mp3"
 
-        success = generate_tts_audio(
-            slide['speaker_notes'],
-            output_file,
-            args.voice,
-            args.model,
-            args.instructions
-        )
+        if args.provider == 'atlascloud':
+            try:
+                atlas_client.generate(slide['speaker_notes'], output_file)
+                success = True
+            except RuntimeError as exc:
+                print(f"\nWarning: Atlas Cloud TTS generation failed: {exc}")
+                success = False
+        else:
+            success = generate_tts_audio(
+                slide['speaker_notes'],
+                output_file,
+                args.voice,
+                args.model,
+                args.instructions
+            )
 
         if success:
             success_count += 1
             # Update cache
-            cache[f"slide_{slide['slide_num']}"] = {
+            cache_entry = {
                 'hash': slide['content_hash'],
-                'voice': args.voice,
-                'model': args.model
+                'provider': args.provider,
+                'model': args.atlas_model if args.provider == 'atlascloud' else args.model,
             }
+            if args.provider == 'atlascloud':
+                cache_entry['speaker'] = args.atlas_speaker
+            else:
+                cache_entry['voice'] = args.voice
+            cache[f"slide_{slide['slide_num']}"] = cache_entry
         else:
             failed_slides.append(slide['slide_num'])
 

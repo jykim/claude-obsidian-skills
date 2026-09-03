@@ -10,11 +10,24 @@ brew install ffmpeg  # macOS
 # OR sudo apt install ffmpeg  # Linux
 
 # Install Python dependencies
-pip install Pillow openai
+pip install Pillow openai requests
 
 # Set OpenAI API key
 export OPENAI_API_KEY="sk-..."
 ```
+
+Atlas Cloud is available as an optional TTS provider. The OpenAI path remains
+the default.
+
+```bash
+export ATLASCLOUD_API_KEY="your-api-key"
+python generate_audio.py "slides.md" --provider atlascloud --output-dir "audio"
+```
+
+The Atlas path reads the live model catalog and selected model schema before
+generation, submits each slide once, and uses bounded polling for results. Use
+`--atlas-model` and `--atlas-speaker` to select another currently listed audio
+model and a compatible voice ID.
 
 ## Input Requirements
 
