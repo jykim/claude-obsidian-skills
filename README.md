@@ -40,6 +40,10 @@ Claude Obsidian Skills is a collection of AI agent skills designed to automate p
 |-------|-------------|
 | [markdown-video](markdown-video/) | Convert markdown slides to MP4 video with TTS narration (with or without Deckset) |
 | [video-cleaning](video-cleaning/) | Remove silent pauses from videos using AI-powered transcription and FFmpeg |
+| [create-vlog-script](create-vlog-script/) | Create narration-first personal vlog scripts and slide-based recording guides from rough notes and media |
+| [remotion-vlog](remotion-vlog/) | Turn camera footage into a concise, review-first Remotion vlog with maps, captions, music, and verified delivery |
+| [remotion-narrated-video-essay](remotion-narrated-video-essay/) | Edit narration-led Remotion essays with selective B-roll, face-safe overlays, and still-frame QA |
+| [voice-clone-skill](voice-clone-skill/) | Prepare, generate, and verify local Qwen3-TTS cloned-voice narration; includes the repository owner's authorized `jin` reference profile |
 
 ### Image Skills
 
@@ -113,6 +117,10 @@ Some skills require external dependencies. Install them before using:
 |-------|--------------|
 | markdown-video | FFmpeg, OpenAI API key, Python 3.7+, Pillow |
 | video-cleaning | FFmpeg, OpenAI API key, Python 3.7+ |
+| create-vlog-script | FFmpeg and a supplied media folder |
+| remotion-vlog | Node.js, Remotion, FFmpeg |
+| remotion-narrated-video-essay | Node.js, Remotion, FFmpeg |
+| voice-clone-skill | Apple Silicon, Python 3.11, FFmpeg, Qwen3-TTS/MLX runtime and model |
 | gemini-image-skill | Gemini API key, Python 3.7+, google-genai, Pillow |
 | markdown-slides | None (markdown only) |
 | obsidian-* | None (file operations only) |
@@ -168,6 +176,20 @@ Use markdown-video to create a narrated video from my slides
 ```
 Use video-cleaning to remove silent pauses from this video
 ```
+
+### Create a Remotion Vlog
+```
+Use remotion-vlog to turn this camera folder into a concise vlog and stop for preview approval before the final render
+```
+
+### Generate Cloned-Voice Narration
+```
+Use voice-clone-skill to generate and verify this Korean narration with my authorized local voice profile
+```
+
+## Voice Profile Notice
+
+The bundled [`jin` voice profile](voice-clone-skill/assets/voices/jin/) is an authorized reference sample from the repository owner. It is included for transparent experimentation with the voice-cloning skill. Do not use it to deceive, impersonate the speaker, imply endorsement, or bypass consent and applicable law. Generated audio should be disclosed as synthetic when context could otherwise mislead listeners.
 
 ## Skill Structure
 

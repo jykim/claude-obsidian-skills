@@ -1,0 +1,4 @@
+interface:
+  display_name: "Remotion Vlog"
+  short_description: "Turn camera footage into a polished Remotion vlog"
+  default_prompt: "Use $remotion-vlog to turn today’s camera footage into a concise, previewable vlog."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Voice Clone"
+  short_description: "로컬 클론 목소리로 음성을 생성하고 검증합니다"
+  default_prompt: "Use $voice-clone-skill to generate speech with my saved cloned voice."
