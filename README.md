@@ -45,6 +45,13 @@ Claude Obsidian Skills is a collection of AI agent skills designed to automate p
 | [remotion-narrated-video-essay](remotion-narrated-video-essay/) | Edit narration-led Remotion essays with selective B-roll, face-safe overlays, and still-frame QA |
 | [voice-clone-skill](voice-clone-skill/) | Prepare, generate, and verify local Qwen3-TTS cloned-voice narration; includes the repository owner's authorized `jin` reference profile |
 
+### Travel Skills
+
+| Skill | Description |
+|-------|-------------|
+| [road-trip-planning](road-trip-planning/) | Build interactive, self-contained HTML road-trip guides with day-by-day itineraries, route maps, cost sheets, and live campsite availability (Recreation.gov, WA State Parks) |
+| [route-map](route-map/) | Render a static PNG route map from waypoints with colored segments and labels (OpenStreetMap tiles, no API key), plus a matching Google Maps directions URL |
+
 ### Image Skills
 
 | Skill | Description |

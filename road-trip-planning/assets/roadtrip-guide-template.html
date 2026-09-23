@@ -1,0 +1,353 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Road Trip Guide</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    :root {
+      --ink: #14231f;
+      --muted: #60716c;
+      --paper: #f7f4ee;
+      --panel: #fffdf8;
+      --line: #ded6c8;
+      --forest: #176c57;
+      --lake: #2e6f95;
+      --rust: #b85f33;
+      --sun: #e4a83a;
+      --plum: #5d4b7c;
+      --hotel: #3f6f8f;
+      --camp: #6f7d35;
+      --sidebar-width: 480px;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: var(--ink); background: var(--paper); }
+    a { color: inherit; }
+    .app { min-height: 100vh; display: grid; grid-template-columns: minmax(340px, var(--sidebar-width)) 8px minmax(0, 1fr); transition: grid-template-columns .2s ease; }
+    .app.sidebar-collapsed { grid-template-columns: 0 0 minmax(0, 1fr); }
+    .sidebar { min-width: 0; height: 100vh; overflow: auto; padding: 26px; background: var(--panel); border-right: 1px solid var(--line); transition: padding .2s ease, border-color .2s ease; }
+    .app.sidebar-collapsed .sidebar { overflow: hidden; padding-left: 0; padding-right: 0; border-right-color: transparent; }
+    .sidebar-resizer { position: sticky; top: 0; z-index: 700; height: 100vh; cursor: col-resize; background: linear-gradient(90deg, rgba(222, 214, 200, .85), rgba(255, 253, 248, .75)); border-right: 1px solid rgba(20,35,31,.1); }
+    .sidebar-resizer::before { content: ""; position: absolute; top: 50%; left: 50%; width: 3px; height: 52px; border-radius: 999px; background: rgba(96,113,108,.55); transform: translate(-50%, -50%); }
+    .sidebar-resizer:hover, body.resizing-sidebar .sidebar-resizer { background: #d9e5df; }
+    .app.sidebar-collapsed .sidebar-resizer { width: 0; overflow: hidden; border-right: 0; cursor: default; }
+    body.resizing-sidebar { cursor: col-resize; user-select: none; }
+    .map-wrap { position: sticky; top: 0; height: 100vh; background: #dbe4df; }
+    #map { width: 100%; height: 100%; }
+    .map-toolbar { position: absolute; top: 16px; left: 16px; z-index: 650; display: flex; gap: 8px; }
+    h1 { margin: 0; font-size: clamp(30px, 4vw, 48px); line-height: 1.02; letter-spacing: 0; }
+    .intro { color: var(--muted); line-height: 1.55; }
+    .controls, .legend, .choice-meta { display: flex; flex-wrap: wrap; gap: 8px; }
+    button { border: 1px solid var(--line); border-radius: 999px; padding: 9px 13px; background: #fffaf0; color: var(--ink); font-weight: 800; cursor: pointer; }
+    button.active { background: var(--forest); color: white; border-color: var(--forest); }
+    .legend { margin: 16px 0 20px; color: var(--muted); font-size: 12px; }
+    .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+    .day-card { margin: 12px 0; overflow: hidden; border: 1px solid var(--line); border-radius: 8px; background: white; box-shadow: 0 10px 25px rgba(22,31,28,.06); }
+    .day-card.active-card { border-color: var(--forest); box-shadow: 0 16px 38px rgba(23,108,87,.18); }
+    .day-head { display: flex; gap: 12px; padding: 16px; border-bottom: 1px solid var(--line); background: linear-gradient(90deg, #fffdf8, #f4efe4); }
+    .day-number { width: 44px; height: 44px; flex: 0 0 auto; display: grid; place-items: center; border-radius: 50%; background: var(--forest); color: white; font-weight: 900; }
+    .day-head h2 { margin: 0 0 4px; font-size: 18px; letter-spacing: 0; }
+    .drive, .muted { color: var(--muted); font-size: 13px; line-height: 1.35; }
+    .day-body { display: grid; gap: 14px; padding: 16px; }
+    .day-actions { display: flex; flex-wrap: wrap; gap: 8px; padding: 10px 16px 0; }
+    .day-actions button, .day-actions a {
+      display: inline-flex; align-items: center; gap: 6px;
+      border: 1px solid #cce0d7; border-radius: 999px;
+      padding: 7px 12px; font-size: 12px; font-weight: 900;
+      background: #f6fbf8; color: #24594e; cursor: pointer;
+      text-decoration: none; transition: background .15s ease;
+    }
+    .day-actions button:hover, .day-actions a:hover { background: #e7f2ec; }
+    .day-actions a.gmaps-route { border-color: #d4dde4; background: #f7fbfc; color: #2e6f95; }
+    .day-actions a.gmaps-route:hover { background: #e6eff5; }
+    .section-title { margin: 0 0 7px; color: var(--rust); font-size: 12px; font-weight: 900; text-transform: uppercase; letter-spacing: .07em; }
+    .schedule { overflow: hidden; border: 1px solid #e5dccd; border-radius: 8px; background: #fffaf0; }
+    .schedule-row { display: grid; grid-template-columns: 74px minmax(0, 1fr); gap: 10px; padding: 10px 12px; border-bottom: 1px solid #eadfce; }
+    .schedule-row:last-child { border-bottom: 0; }
+    .schedule-time { color: #6b5a35; font-size: 12px; font-weight: 900; font-variant-numeric: tabular-nums; }
+    .choice-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    .choice-box { border: 1px solid #e6dccd; border-radius: 8px; padding: 10px; background: #fffdf8; }
+    .choice-box.stay { border-color: #d4dde4; background: #f7fbfc; }
+    .choice-box.activity { border-color: #cce0d7; background: #f6fbf8; }
+    .choice-box.golf-choice { border-color: #dfcf9f; background: #fffaf0; }
+    .choice-label { display: inline-flex; margin-bottom: 5px; border-radius: 999px; padding: 3px 8px; background: #edf4f1; color: #24594e; font-size: 11px; font-weight: 900; text-transform: uppercase; letter-spacing: .04em; }
+    .choice-box a { display: block; color: var(--ink); font-weight: 900; text-decoration: none; line-height: 1.25; }
+    .choice-box span, li { color: var(--muted); font-size: 13px; line-height: 1.35; }
+    .cost-pill, .inline-map-link { display: inline-flex; align-items: center; min-height: 26px; border-radius: 999px; padding: 4px 8px; font-size: 12px; font-weight: 900; text-decoration: none; }
+    .cost-pill { border: 1px solid #e2d7c5; background: #fbf7ee; color: #5f4a1e; }
+    .inline-map-link { border: 1px solid #bdd5ca; background: #eef6f2; color: #24594e; }
+    .marker-pin { width: 32px; height: 32px; border-radius: 50% 50% 50% 12%; transform: rotate(-45deg); border: 3px solid white; box-shadow: 0 5px 14px rgba(0,0,0,.28); display: grid; place-items: center; }
+    .marker-pin span { transform: rotate(45deg); color: white; font-size: 12px; font-weight: 900; }
+    .route-label span { display: inline-flex; min-width: 92px; justify-content: center; padding: 6px 8px; border: 2px solid white; border-radius: 999px; background: rgba(20,35,31,.9); color: white; font-size: 12px; font-weight: 900; }
+    @media (max-width: 900px) {
+      .app { display: flex; flex-direction: column-reverse; }
+      .app.sidebar-collapsed { display: flex; }
+      .sidebar-resizer { display: none; }
+      .app.sidebar-collapsed .sidebar { display: none; }
+      .sidebar { height: auto; min-height: 42vh; border-right: 0; border-top: 1px solid var(--line); }
+      .map-wrap { position: relative; height: 58vh; min-height: 420px; }
+      .choice-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <aside class="sidebar">
+      <h1 id="tripTitle">Road Trip Guide</h1>
+      <p class="intro" id="tripIntro"></p>
+      <div class="controls" id="dayControls"></div>
+      <div class="legend">
+        <span><i class="dot" style="background: var(--forest)"></i>Nature</span>
+        <span><i class="dot" style="background: var(--rust)"></i>Restaurant</span>
+        <span><i class="dot" style="background: var(--sun)"></i>Golf/Activity</span>
+        <span><i class="dot" style="background: var(--hotel)"></i>Hotel</span>
+        <span><i class="dot" style="background: var(--camp)"></i>Camp</span>
+      </div>
+      <section id="itinerary"></section>
+    </aside>
+    <div class="sidebar-resizer" id="sidebarResizer" role="separator" aria-orientation="vertical" aria-label="Resize itinerary panel"></div>
+    <section class="map-wrap">
+      <div class="map-toolbar">
+        <button type="button" id="sidebarToggle" onclick="toggleSidebar()">Hide Itinerary</button>
+      </div>
+      <div id="map"></div>
+    </section>
+  </main>
+  <script>
+    const trip = {
+      title: "Replace With Trip Title",
+      intro: "Replace with route summary, season notes, and assumptions."
+    };
+
+    const dayColors = { 1: "#176c57", 2: "#2e6f95", 3: "#b85f33" };
+
+    const days = [
+      {
+        day: 1,
+        title: "Origin -> Stop -> Destination",
+        drive: "Approx 250 mi / 4.5-5.5h",
+        sleep: "Destination area",
+        schedule: [
+          ["08:00", "Depart", "Start early enough to protect the main stop."],
+          ["12:30", "Lunch", "Use the primary restaurant or a route-side alternative."],
+          ["15:00", "Main sight", "Keep one realistic main attraction per travel day."],
+          ["18:30", "Dinner and stay", "Check in before dinner when possible."]
+        ],
+        sights: ["Main scenic stop", "Short evening walk"],
+        golf: [
+          { name: "Primary Golf Course", desc: "Best-fit course for the day.", url: "https://example.com", placeId: "primaryGolf", cost: "$90-180 / player" },
+          { name: "Backup Golf Course", desc: "Alternative if tee time, weather, or budget is better.", url: "https://example.com", placeId: "backupGolf", cost: "$60-140 / player" }
+        ],
+        food: [
+          { name: "Primary Restaurant", desc: "Why it fits the route.", url: "https://example.com", placeId: "primaryRestaurant", cost: "$20-45 / person" },
+          { name: "Alternative Restaurant", desc: "Backup option.", url: "https://example.com", placeId: "alternativeRestaurant", cost: "$15-35 / person" }
+        ],
+        lodging: [
+          { type: "Hotel", name: "Primary Hotel", desc: "Why it is convenient.", url: "https://example.com", placeId: "primaryHotel", cost: "$150-300 / night" },
+          { type: "Camp", name: "Primary Campground", desc: "Camping alternative.", url: "https://example.com", placeId: "primaryCamp", cost: "$20-45 / night" }
+        ],
+        stops: ["origin", "mainSight", "destination"],
+        pois: ["primaryRestaurant", "alternativeRestaurant"]
+      }
+    ];
+
+    const places = {
+      origin: { name: "Origin", coords: [47.6062, -122.3321], type: "city", note: "Start", color: "#5d4b7c" },
+      destination: { name: "Destination", coords: [47.6777, -116.7805], type: "city", note: "Sleep area", color: "#5d4b7c" },
+      mainSight: { name: "Main Sight", coords: [47.5417, -121.8377], type: "nature", note: "Primary scenic stop", color: "#176c57" },
+      primaryRestaurant: { name: "Primary Restaurant", coords: [47.60, -120.80], type: "food", note: "Primary meal stop", color: "#b85f33" },
+      alternativeRestaurant: { name: "Alternative Restaurant", coords: [47.50, -121.00], type: "food", note: "Backup meal stop", color: "#b85f33" },
+      primaryGolf: { name: "Primary Golf Course", coords: [47.70, -116.76], type: "golf", note: "Primary course", color: "#e4a83a" },
+      backupGolf: { name: "Backup Golf Course", coords: [47.74, -116.82], type: "golf", note: "Alternative course", color: "#e4a83a" },
+      primaryHotel: { name: "Primary Hotel", coords: [47.68, -116.78], type: "hotel", note: "Hotel option", color: "#3f6f8f" },
+      primaryCamp: { name: "Primary Campground", coords: [47.80, -116.70], type: "camp", note: "Camping option", color: "#6f7d35" }
+    };
+
+    const fallbackPhotos = {
+      city: "https://images.unsplash.com/photo-1449824913935-59a10b8d2000?auto=format&fit=crop&w=640&q=80",
+      nature: "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=640&q=80",
+      food: "https://images.unsplash.com/photo-1512058564366-18510be2db19?auto=format&fit=crop&w=640&q=80",
+      golf: "https://images.unsplash.com/photo-1535131749006-b7f58c99034b?auto=format&fit=crop&w=640&q=80",
+      hotel: "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=640&q=80",
+      camp: "https://images.unsplash.com/photo-1504280390367-361c6d9f38f4?auto=format&fit=crop&w=640&q=80"
+    };
+
+    Object.entries(places).forEach(([id, place]) => {
+      const [lat, lng] = place.coords;
+      place.photo = place.photo || fallbackPhotos[place.type] || fallbackPhotos.nature;
+      place.maps = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${place.name} ${lat},${lng}`)}`;
+    });
+
+    const map = L.map("map", { zoomControl: false }).setView([47.5, -119], 6);
+    L.control.zoom({ position: "bottomright" }).addTo(map);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 18, attribution: "&copy; OpenStreetMap contributors" }).addTo(map);
+    const markerLayer = L.layerGroup().addTo(map);
+    const lineLayer = L.layerGroup().addTo(map);
+    const labelLayer = L.layerGroup().addTo(map);
+
+    function uniqueIds(ids) { return [...new Set(ids.filter(Boolean))]; }
+    function dayPoiIds(day) { return uniqueIds([...(day.stops || []), ...(day.pois || []), ...(day.lodging || []).map(item => item.placeId)]).filter(id => places[id]); }
+    function routeStopIds(day) { return (day.stops || []).filter(id => places[id]); }
+    function routeCoords(day) { return routeStopIds(day).map(id => places[id].coords); }
+    function markerIcon(place, label) {
+      return L.divIcon({ className: "", html: `<div class="marker-pin" style="background:${place.color}"><span>${label}</span></div>`, iconSize: [32, 32], iconAnchor: [16, 32] });
+    }
+    function markerLabel(place, day) {
+      if (place.type === "food") return "R";
+      if (place.type === "golf") return "G";
+      if (place.type === "hotel") return "H";
+      if (place.type === "camp") return "C";
+      if (place.type === "nature" || place.type === "lake") return "N";
+      return day.day;
+    }
+    function popupHtml(place, day) {
+      return `<div style="width:260px"><img src="${place.photo}" alt="" style="width:100%;height:140px;object-fit:cover"><div style="padding:10px"><b>${place.name}</b><p class="muted">${place.note}</p><a href="${place.maps}" target="_blank" rel="noreferrer">Google Maps</a></div></div>`;
+    }
+    function draw(selected = "all") {
+      markerLayer.clearLayers(); lineLayer.clearLayers(); labelLayer.clearLayers();
+      const visible = selected === "all" ? days : days.filter(day => day.day === selected);
+      const bounds = [];
+      visible.forEach(day => {
+        const coords = routeCoords(day);
+        L.polyline(coords, { color: dayColors[day.day] || "#176c57", weight: selected === "all" ? 4 : 7, opacity: .78 }).addTo(lineLayer);
+        bounds.push(...coords);
+        dayPoiIds(day).forEach(id => {
+          const place = places[id];
+          bounds.push(place.coords);
+          L.marker(place.coords, { icon: markerIcon(place, markerLabel(place, day)) }).bindPopup(popupHtml(place, day)).addTo(markerLayer);
+        });
+      });
+      if (bounds.length) map.fitBounds(bounds, { padding: [42, 42], maxZoom: selected === "all" ? 7 : 10 });
+    }
+    function choiceMeta(cost, placeId) {
+      const mapUrl = places[placeId]?.maps;
+      return `<div class="choice-meta"><span class="cost-pill">Est. ${cost || "Varies"}</span>${mapUrl ? `<a class="inline-map-link" href="${mapUrl}" target="_blank" rel="noreferrer">Google Maps</a>` : ""}</div>`;
+    }
+    function renderChoices(title, items, labels, stay = false) {
+      return `<div><p class="section-title">${title}</p><div class="choice-grid">${items.map((item, index) => `<div class="choice-box ${stay ? "stay" : ""}"><span class="choice-label">${labels[index] || "Alternative"}</span><a href="${item.url}" target="_blank" rel="noreferrer">${item.name}</a><span>${item.desc}</span>${choiceMeta(item.cost, item.placeId)}</div>`).join("")}</div></div>`;
+    }
+    function activityPlaceId(day, index) {
+      const activityIds = routeStopIds(day).filter(id => ["nature", "lake", "golf"].includes(places[id]?.type));
+      return activityIds[index];
+    }
+    function renderTrailPoiChoices(day) {
+      const primary = day.sights[0];
+      const alternatives = day.sights.slice(1);
+      return `<div><p class="section-title">Trail / POI Plan</p><div class="choice-grid"><div class="choice-box activity"><span class="choice-label">Primary</span><b>${primary}</b><br><span>Main nature/POI stop for the day. Preserve this first if the day slips.</span>${choiceMeta(null, activityPlaceId(day, 0))}</div><div class="choice-box activity"><span class="choice-label">Alternatives</span><ul>${alternatives.map((item, index) => `<li><b>${item}</b>${choiceMeta(null, activityPlaceId(day, index + 1))}</li>`).join("")}</ul></div></div></div>`;
+    }
+    function renderGolfChoices(day) {
+      if (!day.golf?.length) return "";
+      return `<div><p class="section-title">Golf Plan</p><div class="choice-grid">${day.golf.map((item, index) => `<div class="choice-box golf-choice"><span class="choice-label">${index === 0 ? "Primary" : "Alternative"}</span><a href="${item.url}" target="_blank" rel="noreferrer">${item.name}</a><span>${item.desc}</span>${choiceMeta(item.cost, item.placeId)}</div>`).join("")}</div></div>`;
+    }
+    function googleMapsRouteUrl(day) {
+      const ids = routeStopIds(day);
+      if (ids.length < 2) return null;
+      const fmt = id => places[id].coords.join(",");
+      const params = new URLSearchParams({
+        api: "1",
+        origin: fmt(ids[0]),
+        destination: fmt(ids[ids.length - 1]),
+        travelmode: "driving"
+      });
+      const wp = ids.slice(1, -1).map(fmt).join("|");
+      if (wp) params.set("waypoints", wp);
+      return `https://www.google.com/maps/dir/?${params.toString()}`;
+    }
+    function showDayOnMap(dayNum) {
+      document.querySelectorAll("#dayControls button").forEach(item =>
+        item.classList.toggle("active", item.dataset.day === String(dayNum)));
+      draw(dayNum);
+      const app = document.querySelector(".app");
+      if (app.classList.contains("sidebar-collapsed")) toggleSidebar(false);
+      if (window.innerWidth <= 900) {
+        document.querySelector(".map-wrap")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    }
+    function refreshMapSize() {
+      window.requestAnimationFrame(() => map.invalidateSize());
+      window.setTimeout(() => map.invalidateSize(), 240);
+    }
+    function toggleSidebar(forceCollapsed) {
+      const app = document.querySelector(".app");
+      const button = document.getElementById("sidebarToggle");
+      const collapsed = typeof forceCollapsed === "boolean" ? forceCollapsed : !app.classList.contains("sidebar-collapsed");
+      app.classList.toggle("sidebar-collapsed", collapsed);
+      if (button) button.textContent = collapsed ? "Show Itinerary" : "Hide Itinerary";
+      refreshMapSize();
+    }
+    function setupSidebarResize() {
+      const app = document.querySelector(".app");
+      const resizer = document.getElementById("sidebarResizer");
+      if (!app || !resizer) return;
+      let dragging = false;
+      const setWidth = clientX => {
+        const min = 340;
+        const max = Math.min(720, Math.max(min, window.innerWidth * 0.58));
+        const next = Math.max(min, Math.min(max, clientX));
+        document.documentElement.style.setProperty("--sidebar-width", `${Math.round(next)}px`);
+        refreshMapSize();
+      };
+      resizer.addEventListener("pointerdown", event => {
+        if (app.classList.contains("sidebar-collapsed")) return;
+        dragging = true;
+        document.body.classList.add("resizing-sidebar");
+        resizer.setPointerCapture(event.pointerId);
+        event.preventDefault();
+      });
+      resizer.addEventListener("pointermove", event => {
+        if (dragging) setWidth(event.clientX);
+      });
+      const stopDragging = event => {
+        if (!dragging) return;
+        dragging = false;
+        document.body.classList.remove("resizing-sidebar");
+        if (event?.pointerId && resizer.hasPointerCapture(event.pointerId)) resizer.releasePointerCapture(event.pointerId);
+        refreshMapSize();
+      };
+      resizer.addEventListener("pointerup", stopDragging);
+      resizer.addEventListener("pointercancel", stopDragging);
+      window.addEventListener("resize", refreshMapSize);
+    }
+    function renderItinerary() {
+      document.getElementById("tripTitle").textContent = trip.title;
+      document.getElementById("tripIntro").textContent = trip.intro;
+      document.getElementById("dayControls").innerHTML = `<button class="active" data-day="all">All</button>${days.map(day => `<button data-day="${day.day}">Day ${day.day}</button>`).join("")}`;
+      document.getElementById("itinerary").innerHTML = days.map(day => {
+        const gmapsUrl = googleMapsRouteUrl(day);
+        return `
+        <article class="day-card" data-card-day="${day.day}">
+          <div class="day-head"><div class="day-number">${day.day}</div><div><h2>${day.title}</h2><div class="drive">${day.drive}<br>Sleep: ${day.sleep}</div></div></div>
+          <div class="day-actions">
+            <button type="button" data-show-day="${day.day}">📍 Show on Map</button>
+            ${gmapsUrl ? `<a class="gmaps-route" href="${gmapsUrl}" target="_blank" rel="noreferrer">🗺️ Google Maps Route</a>` : ""}
+          </div>
+          <div class="day-body">
+            <div><p class="section-title">Realistic Daily Schedule</p><div class="schedule">${day.schedule.map(([time, title, detail]) => `<div class="schedule-row"><div class="schedule-time">${time}</div><div><b>${title}</b><br><span class="muted">${detail}</span></div></div>`).join("")}</div></div>
+            ${renderTrailPoiChoices(day)}
+            ${renderGolfChoices(day)}
+            ${renderChoices("Restaurant Plan", day.food, ["Primary", "Alternative"])}
+            ${renderChoices("Stay Plan", day.lodging, ["Hotel", "Campsite"], true)}
+          </div>
+        </article>
+      `; }).join("");
+      document.getElementById("dayControls").addEventListener("click", event => {
+        const button = event.target.closest("button");
+        if (!button) return;
+        document.querySelectorAll("#dayControls button").forEach(item => item.classList.remove("active"));
+        button.classList.add("active");
+        draw(button.dataset.day === "all" ? "all" : Number(button.dataset.day));
+      });
+      document.getElementById("itinerary").addEventListener("click", event => {
+        const button = event.target.closest("button[data-show-day]");
+        if (!button) return;
+        showDayOnMap(Number(button.dataset.showDay));
+      });
+    }
+    renderItinerary();
+    setupSidebarResize();
+    draw("all");
+  </script>
+</body>
+</html>

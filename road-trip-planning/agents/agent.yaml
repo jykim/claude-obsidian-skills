@@ -1,0 +1,4 @@
+interface:
+  display_name: "Road Trip Planning"
+  short_description: "Build interactive road-trip HTML guides"
+  default_prompt: "Use $road-trip-planning to create an interactive HTML guide for a multi-day road trip."
